@@ -15,6 +15,8 @@ void kMST_ILP::solve()
 		env = IloEnv();
 		model = IloModel( env );
 
+		addTreeConstraints(); // call first, initialises edges
+
 		// add model-specific constraints
 		if( model_type == "scf" ) modelSCF();
 		else if( model_type == "mcf" ) modelMCF();
@@ -23,6 +25,8 @@ void kMST_ILP::solve()
 			cerr << "No existing model chosen\n";
 			exit( -1 );
 		}
+
+		addObjectiveFunction();
 
 		// build model
 		cplex = IloCplex( model );
@@ -39,6 +43,20 @@ void kMST_ILP::solve()
 		cout << "Branch-and-Bound nodes: " << cplex.getNnodes() << "\n";
 		cout << "Objective value: " << cplex.getObjValue() << "\n";
 		cout << "CPU time: " << Tools::CPUtime() << "\n\n";
+
+		// show result
+		IloNumArray edgesSelected(env, edges.getSize());
+		cplex.getValues(edgesSelected, edges);
+		cout << "Edges:\n";
+
+		for (unsigned int i=0; i<edges.getSize(); i++) {
+			if (i == instance.n_edges) {
+				cout << endl;
+			}
+			bool direction = ( i >= instance.n_edges);
+			cout << "  " << setw(2) <<  i << setw(0) << ": " << edgesSelected[i] << " " <<
+				Tools::edgeToString(instance.edges[i % instance.n_edges], direction) << "\n";
+		}
 	}
 	catch( IloException& e ) {
 		cerr << "kMST_ILP: exception " << e << "\n";
@@ -61,11 +79,52 @@ void kMST_ILP::setCPLEXParameters()
 	cplex.setParam( IloCplex::Threads, 1 );
 }
 
+
+
+// ----- private utility -----------------------------------------------
+
+void kMST_ILP::addObjectiveFunction()
+{
+	// multiply variable by cost
+	IloIntArray edgeCost(env, instance.n_edges * 2);
+
+	for (unsigned int i=0; i<edges.getSize(); i++) {
+		edgeCost[i] = instance.edges[i % instance.n_edges].weight;
+	}
+
+	model.add(IloMinimize(env,  IloScalProd(edges, edgeCost) ));
+}
+
+void kMST_ILP::addTreeConstraints()
+{
+	edges = IloBoolVarArray(env, instance.n_edges * 2); // edges in one direction and in other
+
+	// "to"-edges on lower indices
+	for (unsigned int i=0; i<instance.n_edges; i++) {
+		edges[i] = IloBoolVar(env, Tools::indicesToString("edge " , instance.edges[i].v1, instance.edges[i].v2, instance.edges[i].weight).c_str() );
+	}
+
+	// edges in other direction
+	for (unsigned int i=instance.n_edges; i<instance.n_edges*2; i++) {
+		edges[i] = IloBoolVar(env, Tools::indicesToString("edge " , instance.edges[i].v2, instance.edges[i].v1, instance.edges[i].weight).c_str() );
+	}
+
+	// edges in one direction forbid edges in other direction
+	for (unsigned int i=0; i<instance.n_edges; i++) {
+		model.add( edges[i] + edges[i + instance.n_edges] <= 1 );
+	}
+
+	// exactly k edges
+	model.add(IloSum(edges) == k);
+};
+
+// ----- models -----------------------------------------------
+
+
 void kMST_ILP::modelSCF()
 {
-	// ++++++++++++++++++++++++++++++++++++++++++
-	// TODO build single commodity flow model
-	// ++++++++++++++++++++++++++++++++++++++++++
+
+
 }
 
 void kMST_ILP::modelMCF()

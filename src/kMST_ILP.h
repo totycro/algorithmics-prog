@@ -5,6 +5,8 @@
 #include "Instance.h"
 #include <ilcplex/ilocplex.h>
 
+#include <iostream>
+
 using namespace std;
 
 ILOSTLBEGIN
@@ -25,6 +27,8 @@ private:
 	IloModel model;
 	IloCplex cplex;
 
+	IloBoolVarArray edges; // first half one direction, second half other direction
+
 	void modelSCF();
 	void modelMCF();
 	void modelMTZ();
@@ -38,6 +42,10 @@ public:
 private:
 
 	void setCPLEXParameters();
+
+	void addTreeConstraints();
+	void addObjectiveFunction();
+
 
 };
 // kMST_ILP

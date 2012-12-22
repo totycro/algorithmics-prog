@@ -1,12 +1,12 @@
 #ifndef __INSTANCE__H__
 #define __INSTANCE__H__
 
-#include "Tools.h"
 #include <iostream>
 #include <vector>
 #include <list>
 #include <string>
 #include <fstream>
+#include <sys/types.h>
 
 using namespace std;
 

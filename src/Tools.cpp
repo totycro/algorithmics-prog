@@ -13,6 +13,20 @@ string Tools::indicesToString( string prefix, int i, int j, int v )
 	return ss.str();
 }
 
+string Tools::edgeToString(const Instance::Edge& edge, bool direction)
+{
+	stringstream ss;
+	ss << "edge(" << setw(2);
+	if (!direction) {
+		ss << edge.v1 << " to " << edge.v2 ;
+	} else {
+		ss << edge.v2 << " to " << edge.v1 ;
+	}
+	ss << setw(0) << ", w:" << edge.weight << ")";
+	return ss.str();
+}
+
+
 double Tools::CPUtime()
 {
 	tms t;

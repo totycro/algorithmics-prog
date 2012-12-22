@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <iomanip>
 #include <sys/times.h>
+#include "Instance.h"
 
 using namespace std;
 
@@ -20,6 +21,9 @@ namespace Tools
 {
 	// generate string from edge indices
 	string indicesToString( string prefix, int i, int j = -1, int v = -1 );
+
+	string edgeToString(const Instance::Edge & edge, bool direction);
+
 	// measure running time
 	double CPUtime();
 }

@@ -1,5 +1,7 @@
 #include "Instance.h"
 
+#include "Tools.h"
+
 Instance::Instance( string file )
 {
 	ifstream ifs( file.c_str() );
