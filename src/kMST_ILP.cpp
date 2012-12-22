@@ -114,9 +114,8 @@ void kMST_ILP::addTreeConstraints()
 		model.add( edges[i] + edges[i + instance.n_edges] <= 1 );
 	}
 
-	// exactly k edges
-	// TODO: k+1 ?
-	model.add(IloSum(edges) == k);
+	// exactly k edges (plus one from dummy node 0)
+	model.add(IloSum(edges) == k+1);
 
 	// no 2 incoming edges per vertex
 	for (unsigned int i = 0; i < instance.incidentEdges.size(); i++ ){
@@ -135,7 +134,28 @@ void kMST_ILP::addTreeConstraints()
 		}
 
 		model.add(incomingSum <= 1);
+		incomingSum.end();
 	}
+
+	// only 1 outgoing node from 0, no incoming
+	{
+		const list<u_int> incidences = instance.incidentEdges[0];
+		IloExpr outgoingSum(env);
+		for (unsigned int edgeId=0; edgeId<incidences.size(); edgeId++) {
+			const Instance::Edge & edge = instance.edges[edgeId];
+
+			if (edge.v1 == 0) {
+				outgoingSum += edges[edgeId];
+				model.add(edges[edgeId + instance.n_edges] == 0); // incoming is forbidden
+			} else {
+				outgoingSum += edges[edgeId + instance.n_edges];
+				model.add(edges[edgeId] == 0); // incoming is forbidden
+			}
+		}
+		model.add(outgoingSum == 1);
+		outgoingSum.end();
+	}
+
 };
 
 // ----- models -----------------------------------------------
