@@ -54,7 +54,7 @@ void kMST_ILP::solve()
 				cout << endl;
 			}
 			bool direction = ( i >= instance.n_edges);
-			cout << "  " << setw(2) <<  i << setw(0) << ": " << edgesSelected[i] << " " <<
+			cout << "  " << setw(2) <<  i << setw(0) << ": " << ((int)edgesSelected[i]) << " " <<
 				Tools::edgeToString(instance.edges[i % instance.n_edges], direction) << "\n";
 		}
 	}
@@ -115,7 +115,27 @@ void kMST_ILP::addTreeConstraints()
 	}
 
 	// exactly k edges
+	// TODO: k+1 ?
 	model.add(IloSum(edges) == k);
+
+	// no 2 incoming edges per vertex
+	for (unsigned int i = 0; i < instance.incidentEdges.size(); i++ ){
+		const list<u_int> incidences = instance.incidentEdges[i];
+
+		IloExpr incomingSum(env);
+
+		for (unsigned int edgeId=0; edgeId<incidences.size(); edgeId++) {
+			const Instance::Edge & edge = instance.edges[edgeId];
+			// check which directed version
+			if (edge.v2 == i) {
+				incomingSum += edges[edgeId];
+			} else { // other direction
+				incomingSum += edges[edgeId + instance.n_edges];
+			}
+		}
+
+		model.add(incomingSum <= 1);
+	}
 };
 
 // ----- models -----------------------------------------------
