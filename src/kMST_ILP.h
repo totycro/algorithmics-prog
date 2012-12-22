@@ -46,6 +46,10 @@ private:
 	void addTreeConstraints();
 	void addObjectiveFunction();
 
+	void getOutgoingEdgeIds(vector<u_int> & outgoingEdges, u_int vertex);
+	void getIncomingEdgeIds(vector<u_int> & incomingEdgeIds, u_int vertex);
+	void getVertexEdgeIds(vector<u_int> & incomingEdgeIds, u_int vertex, bool outgoing); // internal
+
 
 };
 // kMST_ILP

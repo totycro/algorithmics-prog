@@ -82,6 +82,39 @@ void kMST_ILP::setCPLEXParameters()
 
 
 // ----- private utility -----------------------------------------------
+void kMST_ILP::getOutgoingEdgeIds(vector<u_int> & outgoingEdgeIds, u_int vertex)
+{
+	getVertexEdgeIds(outgoingEdgeIds, vertex, /*outgoing=*/true);
+}
+
+void kMST_ILP::getIncomingEdgeIds(vector<u_int> & incomingEdgeIds, u_int vertex)
+{
+	getVertexEdgeIds(incomingEdgeIds, vertex, /*outgoing=*/false);
+}
+
+void kMST_ILP::getVertexEdgeIds(vector<u_int> & edgeIds, u_int vertex, bool outgoing)
+{
+	const list<u_int> incidences = instance.incidentEdges[vertex];
+
+	edgeIds.resize(incidences.size());
+
+	int i = -1;
+
+	for (list<u_int>::const_iterator iter = incidences.begin();
+			 iter != incidences.end(); ++iter) {
+		i++;
+
+		unsigned int edgeId = *iter;
+		const Instance::Edge & edge = instance.edges[edgeId];
+
+		if ( (outgoing && edge.v1 == vertex ) || (!outgoing && edge.v2 == vertex) ) {
+			edgeIds[i] = edgeId;
+		} else {
+			edgeIds[i] = edgeId + instance.n_edges;
+		}
+	}
+}
+
 
 void kMST_ILP::addObjectiveFunction()
 {
@@ -118,73 +151,102 @@ void kMST_ILP::addTreeConstraints()
 	model.add(IloSum(edges) == k+1);
 
 	// no 2 incoming edges per vertex
-	for (unsigned int i = 0; i < instance.incidentEdges.size(); i++ ){
-		const list<u_int> incidences = instance.incidentEdges[i];
+	for (unsigned int i=0; i < instance.n_nodes; i++ ){
+
+		vector<u_int> incomingEdgeIds;
+		getIncomingEdgeIds(incomingEdgeIds, i);
 
 		IloExpr incomingSum(env);
 
-		for (unsigned int edgeId=0; edgeId<incidences.size(); edgeId++) {
-			const Instance::Edge & edge = instance.edges[edgeId];
-			// check which directed version
-			if (edge.v2 == i) {
-				incomingSum += edges[edgeId];
-			} else { // other direction
-				incomingSum += edges[edgeId + instance.n_edges];
-			}
+		for (unsigned int i=0; i < incomingEdgeIds.size(); i++ ){
+			incomingSum += edges[incomingEdgeIds[i]];
 		}
 
 		model.add(incomingSum <= 1);
 		incomingSum.end();
 	}
 
-	// only 1 outgoing node from 0, no incoming
+	// only 1 outgoing node from 0
 	{
-		const list<u_int> incidences = instance.incidentEdges[0];
 		IloExpr outgoingSum(env);
-		for (unsigned int edgeId=0; edgeId<incidences.size(); edgeId++) {
-			const Instance::Edge & edge = instance.edges[edgeId];
 
-			if (edge.v1 == 0) {
-				outgoingSum += edges[edgeId];
-				model.add(edges[edgeId + instance.n_edges] == 0); // incoming is forbidden
-			} else {
-				outgoingSum += edges[edgeId + instance.n_edges];
-				model.add(edges[edgeId] == 0); // incoming is forbidden
+		bool hasOutgoing = false;
+		{
+			vector<u_int> outgoingEdges;
+			getOutgoingEdgeIds(outgoingEdges, 0);
+
+			for (unsigned int i=0; i<outgoingEdges.size(); i++) {
+				hasOutgoing = true;
+				outgoingSum += edges[outgoingEdges[i]];
 			}
 		}
-		model.add(outgoingSum == 1);
+
+		if (hasOutgoing) {
+			model.add(outgoingSum == 1);
+		}
 		outgoingSum.end();
 	}
 
-};
+
+	// no incoming to 0
+	{
+		vector<u_int> incomingEdges;
+		getIncomingEdgeIds(incomingEdges, 0);
+				cerr << "in to 0 " << incomingEdges.size() << endl;
+
+		for (unsigned int i=0; i<incomingEdges.size(); i++) {
+			model.add( edges[incomingEdges[i]] == 0) ;
+				cerr << "incoming to 0 " << incomingEdges[i] << endl;
+		}
+
+	}
+}
 
 // ----- models -----------------------------------------------
 
 
 void kMST_ILP::modelSCF()
 {
+	return;
+
+	// flow for each edge
+	IloNumVarArray flow(env, edges.getSize());
+
+	for (unsigned int i=0; i<flow.getSize(); i++) {
+		flow[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
+
+		// not non-zero
+		model.add(0 <= flow[i]);
+		// at most k+1, also ensures that edge is taken if flow is non-zero
+		model.add(flow[i] <= (k+1)*edges[i]);
+	}
+
+	// 0 emits k+1 tokens
 
 
-}
 
-void kMST_ILP::modelMCF()
-{
-	// ++++++++++++++++++++++++++++++++++++++++++
-	// TODO build multi commodity flow model
-	// ++++++++++++++++++++++++++++++++++++++++++
-}
+		// flow conservation, each node eats one
 
-void kMST_ILP::modelMTZ()
-{
-	// ++++++++++++++++++++++++++++++++++++++++++
-	// TODO build Miller-Tucker-Zemlin model
-	// ++++++++++++++++++++++++++++++++++++++++++
-}
+	}
 
-kMST_ILP::~kMST_ILP()
-{
-	// free global CPLEX resources
-	cplex.end();
-	model.end();
-	env.end();
-}
+	void kMST_ILP::modelMCF()
+	{
+		// ++++++++++++++++++++++++++++++++++++++++++
+		// TODO build multi commodity flow model
+		// ++++++++++++++++++++++++++++++++++++++++++
+	}
+
+	void kMST_ILP::modelMTZ()
+	{
+		// ++++++++++++++++++++++++++++++++++++++++++
+		// TODO build Miller-Tucker-Zemlin model
+		// ++++++++++++++++++++++++++++++++++++++++++
+	}
+
+	kMST_ILP::~kMST_ILP()
+	{
+		// free global CPLEX resources
+		cplex.end();
+		model.end();
+		env.end();
+	}
