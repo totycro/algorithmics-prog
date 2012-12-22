@@ -45,17 +45,35 @@ void kMST_ILP::solve()
 		cout << "CPU time: " << Tools::CPUtime() << "\n\n";
 
 		// show result
-		IloNumArray edgesSelected(env, edges.getSize());
+		IloNumArray edgesSelected(env, edges.getSize()), flowRes(env, edges.getSize());;
 		cplex.getValues(edgesSelected, edges);
+
+		if (model_type == "scf") {
+			cplex.getValues(flowRes, flow_scf);
+		}
 		cout << "Edges:\n";
 
 		for (unsigned int i=0; i<edges.getSize(); i++) {
+
+			// skip unused ones
+			if (((int)edgesSelected[i])  == 0 ) {
+				continue;
+			}
+
 			if (i == instance.n_edges) {
 				cout << endl;
 			}
 			bool direction = ( i >= instance.n_edges);
-			cout << "  " << setw(2) <<  i << setw(0) << ": " << ((int)edgesSelected[i]) << " " <<
-				Tools::edgeToString(instance.edges[i % instance.n_edges], direction) << "\n";
+			cout << "  " << setw(4) <<  i << ": " << ((int)edgesSelected[i]) << " ";
+
+			// flow
+			if (model_type == "scf") {
+				cout << "f: " << setw(2) << (flowRes[i]);
+			}
+
+			cout << " " << Tools::edgeToString(instance.edges[i % instance.n_edges], direction) ;
+
+			cout << endl;
 		}
 	}
 	catch( IloException& e ) {
@@ -192,11 +210,9 @@ void kMST_ILP::addTreeConstraints()
 	{
 		vector<u_int> incomingEdges;
 		getIncomingEdgeIds(incomingEdges, 0);
-				cerr << "in to 0 " << incomingEdges.size() << endl;
 
 		for (unsigned int i=0; i<incomingEdges.size(); i++) {
 			model.add( edges[incomingEdges[i]] == 0) ;
-				cerr << "incoming to 0 " << incomingEdges[i] << endl;
 		}
 
 	}
@@ -204,30 +220,68 @@ void kMST_ILP::addTreeConstraints()
 
 // ----- models -----------------------------------------------
 
-
 void kMST_ILP::modelSCF()
 {
-	return;
-
 	// flow for each edge
-	IloNumVarArray flow(env, edges.getSize());
+	flow_scf = IloNumVarArray(env, edges.getSize());
 
-	for (unsigned int i=0; i<flow.getSize(); i++) {
-		flow[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
+	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
+		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
 
 		// not non-zero
-		model.add(0 <= flow[i]);
+		model.add(0 <= flow_scf[i]);
 		// at most k+1, also ensures that edge is taken if flow is non-zero
-		model.add(flow[i] <= (k+1)*edges[i]);
+		model.add(flow_scf[i] <= (k+1)*edges[i]);
 	}
 
 	// 0 emits k+1 tokens
+	{
+		vector<u_int> outgoingEdgeIds;
+		getOutgoingEdgeIds(outgoingEdgeIds, 0);
 
+		IloExpr outgoingFlowSum(env);
+		for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
+			outgoingFlowSum += flow_scf[ outgoingEdgeIds[i] ];
+		}
 
+		model.add(outgoingFlowSum == k+1);
 
-		// flow conservation, each node eats one
-
+		outgoingFlowSum.end();
 	}
+
+	// flow conservation, each node, which is taken, eats one (except first)
+	{
+		vector<u_int> outgoingEdgeIds;
+		getOutgoingEdgeIds(outgoingEdgeIds, 0);
+
+
+		for (unsigned int vertex=1; vertex<instance.n_nodes; vertex++) {
+			vector<u_int> outgoingEdgeIds, incomingEdgeIds;
+
+			getIncomingEdgeIds(incomingEdgeIds, vertex);
+
+			IloExpr incomingFlowSum(env);
+			IloExpr incomingEdgesSum(env);
+			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+				incomingFlowSum += flow_scf[ incomingEdgeIds[i] ];
+				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+			}
+
+			getOutgoingEdgeIds(outgoingEdgeIds, vertex);
+			IloExpr outgoingFlowSum(env);
+			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
+				outgoingFlowSum += flow_scf[ outgoingEdgeIds[i] ];
+			}
+
+			// vertex is part solution if one incoming vertex is used
+
+			model.add(incomingFlowSum - outgoingFlowSum == incomingEdgesSum);
+
+			incomingFlowSum.end();
+			outgoingFlowSum.end();
+		}
+	}
+}
 
 	void kMST_ILP::modelMCF()
 	{

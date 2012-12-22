@@ -28,6 +28,7 @@ private:
 	IloCplex cplex;
 
 	IloBoolVarArray edges; // first half one direction, second half other direction
+	IloNumVarArray flow_scf; // only used for scf (admittedly somewhat ugly, but this is no coding course :)
 
 	void modelSCF();
 	void modelMCF();

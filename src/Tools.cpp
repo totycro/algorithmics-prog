@@ -16,13 +16,13 @@ string Tools::indicesToString( string prefix, int i, int j, int v )
 string Tools::edgeToString(const Instance::Edge& edge, bool direction)
 {
 	stringstream ss;
-	ss << "edge(" << setw(2);
+	ss << "edge(" ;
 	if (!direction) {
-		ss << edge.v1 << " to " << edge.v2 ;
+		ss << setw(3) << edge.v1 << " to " << setw(3) << edge.v2 ;
 	} else {
-		ss << edge.v2 << " to " << edge.v1 ;
+		ss << setw(3) << edge.v2 << " to " << setw(3) << edge.v1 ;
 	}
-	ss << setw(0) << ", w:" << edge.weight << ")";
+	ss << ", w:" << setw(2) << edge.weight << ")";
 	return ss.str();
 }
 
