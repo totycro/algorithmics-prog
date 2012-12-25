@@ -51,7 +51,12 @@ void kMST_ILP::solve()
 		if (model_type == "scf") {
 			cplex.getValues(flowRes, flow_scf);
 		} else if (model_type == "mtz") {
-			cplex.getValues(uRes, u);
+			try {
+				cplex.getValues(uRes, u);
+			} catch ( IloException& e ) {
+				cerr << "Exception while extracting u: " << e << endl;
+				uRes = IloNumArray(env, 0);
+			}
 		}
 		cout << "Edges:\n";
 
@@ -72,13 +77,19 @@ void kMST_ILP::solve()
 			if (model_type == "scf") {
 				cout << "f: " << setw(2) << (flowRes[i]);
 			} else if (model_type == "mtz") {
-				cout << "u: " ;
-				if (i < instance.n_edges) {
-					cout << setw(2) << instance.edges[i % instance.n_edges].v1 << ": " << ((int)uRes[ instance.edges[i % instance.n_edges].v1]) << " "
-							 << setw(2) << instance.edges[i % instance.n_edges].v2 << ": " << ((int)uRes[ instance.edges[i % instance.n_edges].v2]) ;
-				}  else {
-					cout << setw(2) << instance.edges[i % instance.n_edges].v2 << ": " << ((int)uRes[ instance.edges[i % instance.n_edges].v2]) << " "
-							 << setw(2) << instance.edges[i % instance.n_edges].v1 << ": " << ((int)uRes[ instance.edges[i % instance.n_edges].v1]) ;
+				if (uRes.getSize() != 0) {
+					cout << "u: " ;
+					if (i < instance.n_edges) {
+						//cout << setw(2) << instance.edges[i % instance.n_edges].v1 << ": ";
+						cout << setw(2) <<((int)uRes[ instance.edges[i % instance.n_edges].v1]) << " ";
+						//cout << setw(2) << instance.edges[i % instance.n_edges].v2 << ": ";
+						cout << setw(2) << ((int)uRes[ instance.edges[i % instance.n_edges].v2]) ;
+					}  else {
+						//cout << setw(2) << instance.edges[i % instance.n_edges].v2 << ": ";
+						cout << setw(2) <<((int)uRes[ instance.edges[i % instance.n_edges].v2]) << " ";
+						//cout << setw(2) << instance.edges[i % instance.n_edges].v1 << ": ";
+						cout << setw(2) <<((int)uRes[ instance.edges[i % instance.n_edges].v1]) ;
+					}
 				}
 
 			}
@@ -341,10 +352,10 @@ void kMST_ILP::modelMTZ()
 			end = tmp;
 		}
 
-		cerr << "edge " << edgeId << " from " << start << " to " << end << endl;
+		//cerr << "edge " << edgeId << " from " << start << " to " << end << endl;
 
 		// u_start + edge < u_end + (1-edge) * M
-		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  < 0 );
+		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  <= 0 );
 	}
 
 	// if there are no incoming edges to a vertex, its u_i is maximal
@@ -362,10 +373,13 @@ void kMST_ILP::modelMTZ()
 			}
 		}
 
-		// if there are no incoming edges, the subtrahend is 0, so u is maximal
-		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't matter
+		// if there are no incoming edges, the subtrahend is 0, so u_vertex is forced to be maximal
+		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't go into effect
 		// NOTE: this is a quite loose model
-		model.add( (u_max - (incomingEdgesSum * u_max)) >= u[vertex]);
+		model.add( (u_max - (incomingEdgesSum * u_max)) <= u[vertex]);
+
+		// this is the same but probably more efficient, maybe test with it:
+		//model.add( IloIfThen(env, incomingEdgesSum == 0, u[vertex] == u_max) );
 
 		incomingEdgesSum.end();
 	}
