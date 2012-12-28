@@ -60,7 +60,12 @@ void kMST_ILP::solve()
 		}
 		cout << "Edges:\n";
 
+		stringstream edgeLabels; // for debug output MCF
+		edgeLabels << "EDGE";
+
 		for (unsigned int i=0; i<edges.getSize(); i++) {
+
+			edgeLabels << " " << instance.edges[i % instance.n_edges].v1 << instance.edges[i % instance.n_edges].v2;
 
 			// skip unused ones
 			if (((int)edgesSelected[i])  == 0 ) {
@@ -91,13 +96,32 @@ void kMST_ILP::solve()
 						cout << setw(2) <<((int)uRes[ instance.edges[i % instance.n_edges].v1]) ;
 					}
 				}
-
+			} else if (model_type == "mcf") {
+				
 			}
 
 			cout << " " << Tools::edgeToString(instance.edges[i % instance.n_edges], direction) ;
 
 			cout << endl;
 		}
+
+		/* // Debug output
+		if (model_type == "mcf") {
+			cout << "Flow:\n";
+			cout << edgeLabels.str() << endl ;
+		
+			for (unsigned int j=1; j<flow_mcf.size(); j++) { //  commodity j
+				IloNumArray flow(env);
+				cplex.getValues(flow_mcf[j], flow);
+				
+				cout << " " << setw(2) << j << ":";
+				for (unsigned int i=0; i<flow.getSize(); i++) {
+					cout << "  " << abs(flow[i]);
+ 				}
+				cout << endl;
+			} 
+		}*/
+
 
 	} catch (IloAlgorithm::CannotExtractException& e) {
 		cerr << "CannotExtractException: " << e << endl ;
@@ -320,9 +344,106 @@ void kMST_ILP::modelSCF()
 
 void kMST_ILP::modelMCF()
 {
-	// ++++++++++++++++++++++++++++++++++++++++++
-	// TODO build multi commodity flow model
-	// ++++++++++++++++++++++++++++++++++++++++++
+	//  multi commodity flow model
+
+	
+	// flow for each edge and commodity
+	flow_mcf.resize(instance.n_nodes);
+
+	for (unsigned int j=0; j<flow_mcf.size(); j++) { //  commodity j
+		flow_mcf[j] = IloIntVarArray(env, edges.getSize());
+		for (unsigned int i=0; i<flow_mcf[j].getSize(); i++) {
+			flow_mcf[j][i] = IloIntVar(env, Tools::indicesToString("f", instance.edges[i % instance.n_edges ].v1, instance.edges[i % instance.n_edges].v2).c_str());
+			flow_mcf[j][i].setLB(0);
+			flow_mcf[j][i].setUB(1);
+ 		}
+	}
+	
+	// node 0 emits k-1 different commodities 
+       // tries all n-1, but only sends to nodes with incoming edge
+	{
+		vector<u_int> outgoingEdgeIds;
+		getOutgoingEdgeIds(outgoingEdgeIds, 0);
+
+		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+			IloExpr outgoingFlowSum(env);
+			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
+				outgoingFlowSum += flow_mcf[ commodity ][ outgoingEdgeIds[i] ];
+			}
+			vector<u_int> incomingEdgeIds;
+			getIncomingEdgeIds(incomingEdgeIds, commodity);
+
+			IloExpr incomingEdgesSum(env);
+			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+			}
+
+			// only send out commodity for those vertices 
+			//that a part of the k-MST
+			model.add(outgoingFlowSum == incomingEdgesSum);
+
+			outgoingFlowSum.end();
+			incomingEdgesSum.end();
+
+ 		}
+	}
+
+	// each vertex recieves his commodity (if part of k-MST)
+		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+			vector<u_int> incomingEdgeIds;
+
+			getIncomingEdgeIds(incomingEdgeIds, commodity);
+
+			IloExpr incomingFlowSum(env);
+			IloExpr incomingEdgesSum(env);
+			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+				incomingFlowSum += flow_mcf[ commodity ][ incomingEdgeIds[i] ];
+				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+			}
+
+			model.add(incomingFlowSum == incomingEdgesSum);
+
+			incomingFlowSum.end();
+			incomingEdgesSum.end();
+
+		}
+
+	// each vertex forwards all other commodities 
+	for (unsigned int vertex=1; vertex<flow_mcf.size(); vertex++) {
+		vector<u_int> outgoingEdgeIds, incomingEdgeIds;
+		getIncomingEdgeIds(incomingEdgeIds, vertex);
+		IloExpr incomingEdgesSum(env);
+		for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+			incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+		}
+		getOutgoingEdgeIds(outgoingEdgeIds, vertex);
+
+		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+
+			IloExpr incomingFlowSum(env);
+			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+				incomingFlowSum += flow_mcf[ commodity ][ incomingEdgeIds[i] ];
+			}
+			
+			IloExpr outgoingFlowSum(env);
+			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
+				outgoingFlowSum += flow_mcf[ commodity ][ outgoingEdgeIds[i] ];
+			}
+			if (vertex != commodity) {
+				model.add(incomingFlowSum - outgoingFlowSum == 0);
+			}
+			incomingFlowSum.end();
+			outgoingFlowSum.end();
+		}
+		incomingEdgesSum.end();
+ 	}
+
+	// restrict flow to selected edges
+	for (unsigned int edgeId=0; edgeId < edges.getSize(); edgeId++) {	
+		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+			model.add ( flow_mcf[commodity][edgeId] <= edges[edgeId] );
+		}
+	}
 }
 
 void kMST_ILP::modelMTZ()
@@ -345,7 +466,7 @@ void kMST_ILP::modelMTZ()
 		Instance::Edge edgeInst = instance.edges[ edgeId % instance.n_edges ];
 
 		uint start = edgeInst.v1, end = edgeInst.v2;
-
+              // isn't that a contratiction to edgeId % instance.n_edges ?
 		if (edgeId >= instance.n_edges) { // upper half
 			uint tmp = start;
 			start = end;
