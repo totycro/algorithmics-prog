@@ -30,7 +30,7 @@ private:
 	IloBoolVarArray edges; // first half one direction, second half other direction
 
 	IloNumVarArray flow_scf; // only used for scf (admittedly somewhat ugly, but this is no coding course :)
-
+	vector<IloIntVarArray> flow_mcf; // used for mcf (same Hack here)
 	IloIntVarArray u; // only used for mtz
 
 	void modelSCF();
