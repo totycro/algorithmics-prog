@@ -29,7 +29,7 @@
 \usepackage[onehalfspacing]{setspace}
 %\usepackage[singlespacing]{setspace}
 \usepackage{tabularx}
-\usepackage{hyperref}
+%\usepackage{hyperref}
 \usepackage{comment}
 \usepackage{color}
 \usepackage{url}      % for urls
@@ -37,29 +37,62 @@
 \usepackage{float}
 \usepackage{caption}
 \usepackage{amsmath}
+\usepackage{mathtools}
 \usepackage{amssymb}
 
-%\usepackage{graphicx}
+\usepackage{soul}
 
-%\usepackage[square]{natbib} % \cite ; square|round etc.
-%\usepackage[numbers,square]{natbib}
-%\usepackage[square, authoryear]{natbib}
+\newcommand{\mst}{\textbf{MST}}
+\newcommand{\kmst}{\textit{k}-\mst}
 
-
-\newcommand{\kmst}{\textit{k}-\textbf{MST}}
+\definecolor{grey2}{gray}{.90}
+\sethlcolor{grey2}
+\newcommand{\ilc}[1]{\hl{\texttt{#1}}} % ilc = inline code
 
 \title{Report on the implementation of the \kmst\ problem as integer linear program}
 \author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ deine matr nr?}
-%%\subtitle{}
-%\date{13. November 2007}
-%\publishers{Betreut durch Univ.-Ass. Dipl.-Ing. Christian Schauer, BSc}
-
 
 \begin{document}
 
 \maketitle
 
 \section{Problem description}
+
+The \kmst\ problem is a variation of the Minimum Spanning Tree (\mst) problem for undirected graphs $G = (V, E, w)$, including a weight function $w(e) : E \rightarrow \mathbb{R}^+_0$.
+The goal of both problems is to find a tree of minimum cost, but instead of requiring it to span the whole graph as in the classical \mst, for the \kmst, the tree has to span a given number of $k$ arbitrary nodes.
+This restriction turns the formerly tractable problem into an $NP$-complete one.
+
+\section{General formulation}
+
+This section describes all variables and constraints, that the formulations for connectivity share.
+
+In order to represent the graph, we chose to use a Boolean array \ilc{edges} containing a directed variants of the originally undirected edges.
+This will simplify the management of flow later on.
+\ilc{edges} contains $2|E|$ elements, where the first half represents the edges in one direction and the other half the opposite ones.
+Since trees are acyclic, we can require that only one of the two directed edges that are derived from an undirected edge in the original graph are chosen:
+\begin{equation}
+ \ilc{edges}[i] + \ilc{edges}[i + |E|] \leq 1\quad\forall~0\leq i \leq |E|
+\end{equation}
+
+Furthermore, to avoid circles in the set of solutions, we require that each vertex has at most one incoming edge (\eqref{eq:oneIncoming}) with a special treatment of the artificial root node, which must not have any incoming edge at all (\eqref{eq:root0}) but exactly one outgoing node (\eqref{eq:root1}). 
+As the connectivity constraints take effect later, this will ensure that once a node is reached from the root node, there cannot be a path back it (which would form a circle), since then the number of incoming edges would exceed 1.
+
+\begin{equation}\label{eq:oneIncoming}
+	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges}[i] = 1 \quad \forall~0\leq j \leq |V|
+\end{equation}
+\begin{equation}\label{eq:root0}
+	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(0)}}} \ilc{edges}[i] = 0
+\end{equation}
+\begin{equation}\label{eq:root1}
+	\sum_{\mathclap{i\,\in\,\ilc{outgoingEdges(0)}}} \ilc{edges}[i] = 1 
+\end{equation}
+
+Finally, it is still necessary to state the size of the tree to be calculated.
+The problem statement requires the tree to have exactly $k$ nodes, which for trees means that there are $k-1$ edges.
+Since this formulation also includes an artificial root node, that is not part of the actual problem, we need to allow a further edge, resulting in $k-1+1=k$ edges in total.
+\begin{equation}
+	\sum_{i=0}^{2|E|} \ilc{edges}[i] = k
+\end{equation}
 
 \section{Connectivity formulations}
 
