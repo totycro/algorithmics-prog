@@ -1,0 +1,75 @@
+\documentclass[,%fontsize=11pt,%
+			paper=a4,% 
+			%DIV12, % mehr text pro seite als defaultyyp
+			DIV12,
+			%DIV=calc,%
+			%twoside=false,%
+			liststotoc,
+			bibtotoc,
+			draft=false,% final|draft % draft ist platzsparender (kein code, bilder..)
+			%titlepage,
+			numbers=noendperiod
+			]{scrartcl}
+
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[english]{babel}
+
+
+%\usepackage{vaucanson-g}
+%\usepackage{amssymb}
+%\usepackage{latexsym}
+
+% for color-highlighted code
+%\usepackage{color} % for grey comments
+%\usepackage{alltt}
+
+%\usepackage[doublespacing]{setspace}
+\usepackage[onehalfspacing]{setspace}
+%\usepackage[singlespacing]{setspace}
+\usepackage{tabularx}
+\usepackage{hyperref}
+\usepackage{comment}
+\usepackage{color}
+\usepackage{url}      % for urls
+\usepackage{multicol}
+\usepackage{float}
+\usepackage{caption}
+\usepackage{amsmath}
+\usepackage{amssymb}
+
+%\usepackage{graphicx}
+
+%\usepackage[square]{natbib} % \cite ; square|round etc.
+%\usepackage[numbers,square]{natbib}
+%\usepackage[square, authoryear]{natbib}
+
+
+\newcommand{\kmst}{\textit{k}-\textbf{MST}}
+
+\title{Report on the implementation of the \kmst\ problem as integer linear program}
+\author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ deine matr nr?}
+%%\subtitle{}
+%\date{13. November 2007}
+%\publishers{Betreut durch Univ.-Ass. Dipl.-Ing. Christian Schauer, BSc}
+
+
+\begin{document}
+
+\maketitle
+
+\section{Problem description}
+
+\section{Connectivity formulations}
+
+\subsection{Single Commodity Flow Formulation}
+\subsection{Multi Commodity Flow Formulation}
+\subsection{Sequential Formulation}
+
+\section{Results}
+obj value, running times, number of b\&b nodes
+
+\section{Interpretation of results}
+
+\end{document}
