@@ -42,11 +42,11 @@ void kMST_ILP::solve()
 
 		nodes = cplex.getNnodes();
 		objectiveValue = cplex.getObjValue();
-		cpuTime = Tools::CPUtime();
+		
 		cout << "CPLEX status: " << cplex.getStatus() << "\n";
 		cout << "Branch-and-Bound nodes: " << nodes << "\n";
 		cout << "Objective value: " << objectiveValue  << "\n";
-		cout << "CPU time: " << cpuTime  << "\n\n";
+		cout << "CPU time: " << Tools::CPUtime() << "\n\n";
 
 		// show result
 		IloNumArray edgesSelected(env, edges.getSize()), flowRes(env, edges.getSize()), uRes(env, instance.n_nodes);
@@ -154,9 +154,6 @@ double kMST_ILP::getObjectiveValue() {
 	return objectiveValue;
 }
 
-double kMST_ILP::getcpuTime() {
-	return cpuTime;
-}
 
 
 // ----- private methods -----------------------------------------------
@@ -304,10 +301,10 @@ void kMST_ILP::modelSCF()
 	// single commodity flow model
 
 	// flow for each edge
-	flow_scf = IloIntVarArray(env, edges.getSize()); // TODO chekc with numvar?
+	flow_scf = IloNumVarArray(env, edges.getSize()); // TODO Works horrible with INTvar - compare benchmarks
 
 	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
-		flow_scf[i] = IloIntVar(env, Tools::indicesToString("flow", i).c_str());
+		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
 
 		// non-zero
 		model.add(0 <= flow_scf[i]);
@@ -374,6 +371,9 @@ void kMST_ILP::modelMCF()
 		flow_mcf[j] = IloBoolVarArray(env, edges.getSize());
 		for (unsigned int i=0; i<flow_mcf[j].getSize(); i++) {
 			flow_mcf[j][i] = IloBoolVar(env, Tools::indicesToString("f", instance.edges[i % instance.n_edges ].v1, instance.edges[i % instance.n_edges].v2).c_str());
+			flow_mcf[j][i].setLB(0);
+			flow_mcf[j][i].setUB(1);
+			// TODO strenghten:no flow back to root
  		}
 	}
 	
@@ -474,6 +474,7 @@ void kMST_ILP::modelMTZ()
 	u = IloIntVarArray(env, instance.n_nodes);
 	for (unsigned int i=0; i<u.getSize(); i++) {
 		u[i] = IloIntVar(env, 0, u_max, Tools::indicesToString("u", i).c_str());
+		// strengthen constraints for on artificial nodes
 		if (i > 0) {
 			u[i].setLB(1); // TODO benchmark
 		} 
@@ -497,6 +498,9 @@ void kMST_ILP::modelMTZ()
 
 		// u_start + edge < u_end + (1-edge) * M
 		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  <= 0 );
+
+		// TODO u = 1 for first node
+		
 	}
 
 	// TODO: alldifferent for all u (but umax)

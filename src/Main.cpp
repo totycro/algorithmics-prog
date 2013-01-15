@@ -53,13 +53,12 @@ int main( int argc, char *argv[] )
 	// read instance
 	Instance instance( file );
 	// solve instance
-	double cpuTimeSum = 0;
-	double objectiveValue;
-	int nodes;
+	double objectiveValue = 0;
+	int nodes = 0;
+
 	for (int round=0; round<rounds; round++) {
 		kMST_ILP ilp( instance, model_type, k );
 		ilp.solve();
-		cpuTimeSum += ilp.getcpuTime();
 		objectiveValue = ilp.getObjectiveValue();
 		nodes = ilp.getNodes();
 	}
@@ -80,7 +79,7 @@ int main( int argc, char *argv[] )
 		}
 		log <<file <<"\t"<< model_type <<"\t"<< k <<"\t"<< 
 			objectiveValue <<"\t"<< nodes
-			<<"\t"<< cpuTimeSum / rounds<<"\r\n";
+			<<"\t"<< Tools::CPUtime()/ rounds<<"\r\n";
  		log.close();
 	}
 
