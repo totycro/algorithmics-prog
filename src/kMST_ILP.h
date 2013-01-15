@@ -29,19 +29,27 @@ private:
 
 	IloBoolVarArray edges; // first half one direction, second half other direction
 
-	IloNumVarArray flow_scf; // only used for scf (admittedly somewhat ugly, but this is no coding course :)
-	vector<IloIntVarArray> flow_mcf; // used for mcf (same Hack here)
+	IloIntVarArray flow_scf; // only used for scf (admittedly somewhat ugly, but this is no coding course :)
+	vector<IloBoolVarArray> flow_mcf; // used for mcf (same Hack here)
 	IloIntVarArray u; // only used for mtz
+
+	int nodes; //branch an bound nodes
+	double objectiveValue; // cost
+	double cpuTime; // time needed
 
 	void modelSCF();
 	void modelMCF();
 	void modelMTZ();
+
 
 public:
 
 	kMST_ILP( Instance& _instance, string _model_type, int _k );
 	~kMST_ILP();
 	void solve();
+	int getNodes();
+	double getObjectiveValue();
+	double getcpuTime();
 
 private:
 
