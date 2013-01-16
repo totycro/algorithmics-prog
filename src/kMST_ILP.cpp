@@ -533,6 +533,16 @@ void kMST_ILP::modelMTZ()
 
 		// TODO u = 1 for first node
 
+		if (start == 0) {
+			// help u assignment: we know that if a an edge leaving 0 is chosen, the u-value has to be 1 for the node entered by the edge
+
+			// NOTE: this should be used for big instances (e.g. g06), but leads to worse runtimes for smaller instances
+
+			//model.add( u[end] <= edges[edgeId] + ( (1 - edges[edgeId]) * u_max  ) );
+
+		}
+
+
 	}
 
 	// TODO: alldifferent for all u (but umax)
