@@ -76,6 +76,7 @@ Since trees are acyclic, we can require that only one of the two directed edges 
 
 Furthermore, to avoid circles in the set of solutions, we require that each vertex has at most one incoming edge (\eqref{eq:oneIncoming}) with a special treatment of the artificial root node, which must not have any incoming edge at all (\eqref{eq:root0}) but exactly one outgoing node (\eqref{eq:root1}). 
 As the connectivity constraints take effect later, this will ensure that once a node is reached from the root node, there cannot be a path back it (which would form a circle), since then the number of incoming edges would exceed 1.
+In order to add the constraints only for the relevant and existing edges, we implemented two auxiliary functions: \ilc{incomingEdges}, which returns for a node \ilc{j} the set of indices in the \ilc{edges}-array which correspond to edges incoming to \ilc{j}, and \ilc{outgoingEdges}, which works analoguously for outgoing edges.
 
 \begin{equation}\label{eq:oneIncoming}
 	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges}[i] = 1 \quad \forall~0\leq j \leq |V|
