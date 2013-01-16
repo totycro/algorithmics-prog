@@ -26,6 +26,13 @@ namespace Tools
 
 	// measure running time
 	double CPUtime();
+
+	struct Tree {
+		vector<list<pair<int, float> > > tree;
+		Tree(int sz);
+		void addEdge(int i, int j, float flow);
+		void print(ostream&);
+	};
 }
 ;
 // Tools

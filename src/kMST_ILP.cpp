@@ -42,7 +42,7 @@ void kMST_ILP::solve()
 
 		nodes = cplex.getNnodes();
 		objectiveValue = cplex.getObjValue();
-		
+
 		cout << "CPLEX status: " << cplex.getStatus() << "\n";
 		cout << "Branch-and-Bound nodes: " << nodes << "\n";
 		cout << "Objective value: " << objectiveValue  << "\n";
@@ -66,6 +66,8 @@ void kMST_ILP::solve()
 
 		stringstream edgeLabels; // for debug output MCF
 		edgeLabels << "EDGE";
+
+		Tools::Tree tree(instance.n_nodes);
 
 		for (unsigned int i=0; i<edges.getSize(); i++) {
 
@@ -101,32 +103,50 @@ void kMST_ILP::solve()
 					}
 				}
 			} else if (model_type == "mcf") {
-				
+
 			}
 
 			cout << " " << Tools::edgeToString(instance.edges[i % instance.n_edges], direction) ;
 
+
 			cout << endl;
+
+
+			if (model_type == "scf") { // build tree
+				if (!direction) {
+					tree.addEdge( instance.edges[i % instance.n_edges].v1,
+												instance.edges[i % instance.n_edges].v2,
+												flowRes[i] );
+				} else {
+					tree.addEdge( instance.edges[i % instance.n_edges].v2,
+												instance.edges[i % instance.n_edges].v1,
+												flowRes[i] );
+				}
+			}
 		}
+
+
+		cout << "\nscf-tree: \n";
+		tree.print(cout);
 
 		/* // Debug output
 		if (model_type == "mcf") {
 			cout << "Flow:\n";
 			cout << edgeLabels.str() << endl ;
-		
+
 			for (unsigned int j=1; j<flow_mcf.size(); j++) { //  commodity j
 				IloNumArray flow(env);
 				cplex.getValues(flow_mcf[j], flow);
-				
+
 				cout << " " << setw(2) << j << ":";
 				for (unsigned int i=0; i<flow.getSize(); i++) {
 					cout << "  " << abs(flow[i]);
  				}
 				cout << endl;
-			} 
+			}
 		}*/
 
-		
+
 
 
 	} catch (IloAlgorithm::CannotExtractException& e) {
@@ -305,9 +325,17 @@ void kMST_ILP::modelSCF()
 
 	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
 		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
+		//flow_scf[i] = IloNumVar(env, 0, IloInfinity, IloNumVar::Int, Tools::indicesToString("flow", i).c_str());
 
 		// non-zero
 		model.add(0 <= flow_scf[i]);
+
+		// TODO:
+		// max possible flow is k for the connection from the artificial root to the real node
+		// the other ones then can carry a maximum of k-1, since the real root eats the first one
+
+		//int maxFlowOnEdge = k;
+
 		// at most k, also ensures that edge is taken if flow is non-zero
 		model.add(flow_scf[i] <= k*edges[i]); // TODO k-1 for all but root edges
 	}
@@ -363,7 +391,7 @@ void kMST_ILP::modelMCF()
 {
 	//  multi commodity flow model
 
-	
+
 	// flow for each edge and commodity
 	flow_mcf.resize(instance.n_nodes);
 
@@ -376,8 +404,8 @@ void kMST_ILP::modelMCF()
 			// TODO strenghten:no flow back to root
  		}
 	}
-	
-	// node 0 emits k-1 different commodities 
+
+	// node 0 emits k-1 different commodities
        // tries all n-1, but only sends to nodes with incoming edge
 	{
 		vector<u_int> outgoingEdgeIds;
@@ -396,7 +424,7 @@ void kMST_ILP::modelMCF()
 				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
 			}
 
-			// only send out commodity for those vertices 
+			// only send out commodity for those vertices
 			//that a part of the k-MST
 			model.add(outgoingFlowSum == incomingEdgesSum);
 
@@ -426,7 +454,7 @@ void kMST_ILP::modelMCF()
 
 		}
 
-	// each vertex forwards all other commodities 
+	// each vertex forwards all other commodities
 	for (unsigned int vertex=1; vertex<flow_mcf.size(); vertex++) {
 		vector<u_int> outgoingEdgeIds, incomingEdgeIds; //TODO twice ?
 		getIncomingEdgeIds(incomingEdgeIds, vertex);
@@ -442,7 +470,7 @@ void kMST_ILP::modelMCF()
 			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
 				incomingFlowSum += flow_mcf[ commodity ][ incomingEdgeIds[i] ];
 			}
-			
+
 			IloExpr outgoingFlowSum(env);
 			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
 				outgoingFlowSum += flow_mcf[ commodity ][ outgoingEdgeIds[i] ];
@@ -457,7 +485,7 @@ void kMST_ILP::modelMCF()
  	}
 
 	// restrict flow to selected edges
-	for (unsigned int edgeId=0; edgeId < edges.getSize(); edgeId++) {	
+	for (unsigned int edgeId=0; edgeId < edges.getSize(); edgeId++) {
 		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
 			model.add ( flow_mcf[commodity][edgeId] <= edges[edgeId] );
 		}
@@ -477,7 +505,7 @@ void kMST_ILP::modelMTZ()
 		// strengthen constraints for on artificial nodes
 		if (i > 0) {
 			u[i].setLB(1); // TODO benchmark
-		} 
+		}
 	}
 
 	// 0 vertex has fixed value
@@ -500,7 +528,7 @@ void kMST_ILP::modelMTZ()
 		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  <= 0 );
 
 		// TODO u = 1 for first node
-		
+
 	}
 
 	// TODO: alldifferent for all u (but umax)
