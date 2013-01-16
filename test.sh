@@ -1,6 +1,20 @@
 #!/bin/bash
 
-make
+make -j4
+
+single_model_test() {
+	nice ./kmst -f data/g03.dat -m $1 -k 10 -l log.txt -r 10
+	nice ./kmst -f data/g03.dat -m $1 -k 25 -l log.txt -r 10
+	nice ./kmst -f data/g04.dat -m $1 -k 14 -l log.txt -r 5
+	nice ./kmst -f data/g04.dat -m $1 -k 35 -l log.txt -r 5
+	nice ./kmst -f data/g05.dat -m $1 -k 20 -l log.txt -r 5
+	nice ./kmst -f data/g05.dat -m $1 -k 50 -l log.txt -r 5
+
+	nice ./kmst -f data/g06.dat -m $1 -k 40 -l log.txt
+	nice ./kmst -f data/g06.dat -m $1 -k 100 -l log.txt
+}
+
+#single_model_test scf ; exit 0
 
 #./kmst -f data/g05.dat -m mtz -k 20 -l log.txt
 #exit 1
