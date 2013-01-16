@@ -54,7 +54,7 @@ void Tools::Tree::addEdge(int i, int j, float flow)
 void Tools::Tree::print(ostream& s)
 {
 	s << "digraph G {\n";
-	for (int i=0; i<tree.size(); i++) {
+	for (unsigned int i=0; i<tree.size(); i++) {
 		if (!tree[i].empty()) {
 			s << "\t" << i << ";\n";
 		}

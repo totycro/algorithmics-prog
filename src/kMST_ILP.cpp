@@ -126,8 +126,10 @@ void kMST_ILP::solve()
 		}
 
 
-		cout << "\nscf-tree: \n";
-		tree.print(cout);
+		if (false) {
+			cout << "\nscf-tree: \n";
+			tree.print(cout);
+		}
 
 		/* // Debug output
 		if (model_type == "mcf") {
@@ -330,14 +332,16 @@ void kMST_ILP::modelSCF()
 		// non-zero
 		model.add(0 <= flow_scf[i]);
 
-		// TODO:
 		// max possible flow is k for the connection from the artificial root to the real node
 		// the other ones then can carry a maximum of k-1, since the real root eats the first one
 
-		//int maxFlowOnEdge = k;
+		bool firstHalf = ( i < instance.n_edges);
+		int startNode = firstHalf ? instance.edges[i].v1 : instance.edges[i - instance.n_edges].v2;
+
+		int maxFlowOnEdge = (startNode == 0) ? k : k-1;
 
 		// at most k, also ensures that edge is taken if flow is non-zero
-		model.add(flow_scf[i] <= k*edges[i]); // TODO k-1 for all but root edges
+		model.add(flow_scf[i] <= maxFlowOnEdge*edges[i]);
 	}
 
 	// 0 emits k tokens

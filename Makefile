@@ -4,7 +4,7 @@ USERNAME = $(shell whoami)
 
 EXEC = ./kmst -f data/g01.dat -m scf -k 5
 
-DEBUG = 1
+DEBUG = 0
 
 CPLEX_VERSION = 12.5
 CPLEX_DIR = /home1/share/ILOG/cplex-$(CPLEX_VERSION)
