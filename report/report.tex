@@ -64,7 +64,7 @@ This restriction turns the formerly tractable problem into an $NP$-complete one.
 
 \section{General formulation}
 
-This section describes all variables and constraints, that the formulations for connectivity share.
+This section describes all variables and constraints, that the formulations for connectivity share. It deals mostly with representing the graph as well as ensuring acyclicity.
 
 In order to represent the graph, we chose to use a Boolean array \ilc{edges} containing a directed variants of the originally undirected edges.
 This will simplify the management of flow later on.
@@ -79,7 +79,7 @@ As the connectivity constraints take effect later, this will ensure that once a 
 In order to add the constraints only for the relevant and existing edges, we implemented two auxiliary functions: \ilc{incomingEdges}, which returns for a node \ilc{j} the set of indices in the \ilc{edges}-array which correspond to edges incoming to \ilc{j}, and \ilc{outgoingEdges}, which works analoguously for outgoing edges.
 
 \begin{equation}\label{eq:oneIncoming}
-	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges}[i] = 1 \quad \forall~0\leq j \leq |V|
+	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges}[i] = 1 \quad \forall j \in V
 \end{equation}
 \begin{equation}\label{eq:root0}
 	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(0)}}} \ilc{edges}[i] = 0
@@ -97,7 +97,56 @@ Since this formulation also includes an artificial root node, that is not part o
 
 \section{Connectivity formulations}
 
+The central task of this exercise is to ensure the connectivity of the tree, which can be achieved with any of the following formulations.
+The sections are split up into the essential core formulations and strengthening constraints, which are not necessary for correctness but lead to a tighter formulation.
+
 \subsection{Single Commodity Flow Formulation}
+
+The idea of this formulation is to produce flow at the root node, of which every vertex of the solution consumes one unit.
+This consumption however can only take place if the flow is delivered to the node on a path that consists of solution edges.
+If such a path from the root node to every solution node exists, it is ensured that these vertices are connected.
+
+The concrete modelling is based upon an array of flow values for each edge named \ilc{flow\_scf}.
+The variables of this array are constrained to take nonnegative values up to $k$, where the respective value in \ilc{edges} serves as activation flag: A flow greater than 0 is only allowed in case the edge is taken:
+\begin{equation}\label{eq:scf1}
+	0 \leq \ilc{flow\_scf}[i] \leq k * \ilc{edges}[i] \quad 0 \leq i \leq 2|E|
+\end{equation}
+
+The artificial root node $0$ sends out $k$ units of flow:\nolinebreak
+\begin{equation}
+	\sum_{\mathclap{i\,\in\,\ilc{outgoingEdges(0)}}} \ilc{flow\_scf}[i] = k
+\end{equation}
+
+Flow must be conserved, every vertex of the solution sends out as much as it receives minus the one it consumes. In valid solutions, this constraint is only fulfilled by vertices, that are part of the solution. Those differ from the others by having exactly one incoming edge, which is leveraged as activation flag in this formulation:
+
+\begin{equation}
+	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{flow\_scf}[i] \quad - \quad
+	\sum_{\mathclap{i\,\in\,\ilc{outgoingEdges(j)}}} \ilc{flow\_scf}[i] \quad = \quad 
+	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges\_scf}[i] 
+	\quad \forall j\,\in\,V
+\end{equation}
+
+
+\subsubsection{Strengthening constraints}
+
+In \eqref{eq:scf1}, the maximum value for the flow is limited by $k$. However since it's a priori deducible that the first edge can only belong to the set of edges leaving the artificial root node, we can tighten the maximum to $k-1$ for all other nodes, as the source of this edge can at most send out this many units of flow.
+\begin{equation}\tag{\ref{eq:scf1}$^\prime$}
+	0 \leq \ilc{flow\_scf}[i] \leq k * \ilc{edges}[i] \quad \forall i \in \ilc{outgoingEdges(0)} 
+\end{equation}
+\begin{equation}\tag{\ref{eq:scf1}$^{\prime\prime}$}
+	0 \leq \ilc{flow\_scf}[i] \leq (k-1) * \ilc{edges}[i] \quad \forall i \not\in \ilc{outgoingEdges(0)}
+\end{equation}
+
+As further optimisation, we tried to restrict the flow variables to integer values, since in valid solutions, they have to be integer. This turned out to have negative effects on the runtime.
+
+
+\begin{comment}
+	- flow on each edge
+	- 0 <= flow\_i <= k/k-1 * edge
+	- root note emits
+	- every node eats/flow conservation
+\end{comment}
+
 \subsection{Multi Commodity Flow Formulation}
 \subsection{Sequential Formulation}
 
