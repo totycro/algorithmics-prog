@@ -50,7 +50,7 @@
 \newcommand{\ilc}[1]{\hl{\texttt{#1}}} % ilc = inline code
 
 \title{Report on the implementation of the \kmst\ problem as integer linear program}
-\author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ deine matr nr?}
+\author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ 0627958}
 
 \begin{document}
 
@@ -148,6 +148,46 @@ As further optimisation, we tried to restrict the flow variables to integer valu
 \end{comment}
 
 \subsection{Multi Commodity Flow Formulation}
+\subsection{Multi Commodity Flow Formulation}
+The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex seperatly, called a commodity. Formally the $flow$ is now $\ilc{flow[k][e]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $e \in \ilc{edges}$; The flow is send out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
+
+\subsubsection{Constraints}
+Additional variables:The \ilc{incomingFlowSum[commodity]} is defined as the sum of all ilc{flow} on all edges ending in vertex \ilc{commodity} on commodity-level \ilc{commodity} of the flow.
+\begin{equation}\label{eq:mfcInFlow}
+	 \ilc{incomingFlowSum[commodity]} = \sum_{\forall \ilc{edge} \in \ilc{edges}| ilc{edge.v2} = \ilc{commodity}} \ilc{flow[commodity][edge]} 
+\forall \ilc{commodity} \in V \textbackslash \{0\}
+\end{equation}
+
+Additional variables:The \ilc{incomingEdgesSum[commodity]} is defined as the sum of all edges ending in vertex \ilc{commodity} that are part of the \kmst\ .
+\begin{equation}\label{eq:mfcInEdges}
+	 \ilc{incomingEdgesSum[commodity]} = \sum_{\forall \ilc{edge} \in \ilc{edges} | ilc{edge.v2} = \ilc{commodity}} \ilc{edge} 
+\forall \ilc{commodity} \in V \textbackslash \{0\}
+\end{equation}
+
+
+This constraint implies the sending of the commodity for each vertex that is part of the \kmst\ (=has one incoming edge).
+\begin{equation}\label{eq:mfcSend}
+	\sum_{\forall e|i=0, j \neq 0}^{} \ilc{flow[commodity][e]} = \ilc{incomingEdgesSum[commodity]}
+\forall \ilc{commodity} \in V  \textbackslash \{0\}
+\end{equation}
+
+
+Each vertex recieves his commodity (if part of \kmst\ ).
+\begin{equation}\label{eq:mfcRec}
+	 \ilc{incomingFlowSum[commodity]} = \ilc{incomingEdgesSum[commodity]}
+\forall \ilc{commodity} \in V  \textbackslash \{0\}
+\end{equation}
+
+Flow is restricted to selected edges
+
+\begin{equation}\label{eq:mfcFlowEdge}
+ \ilc{flow[commodity][e]} \leq \ilc{edges[e]} \forall \ilc{e}
+\forall \ilc{commodity} \in V  \textbackslash \{0\}
+\end{equation}
+
+\subsubsection{Strengthening Constraints}
+
+
 \subsection{Sequential Formulation}
 
 \section{Results}
