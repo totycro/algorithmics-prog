@@ -35,8 +35,11 @@ data/g06.dat	mcf	40	2068	231	2160.25
 data/g06.dat	mtz	100	6705	32780	177.51
 data/g06.dat	scf	100	6705	1587	10.77
 data/g06.dat	mcf	100	6705	9	1967.34
-data/g07.dat	mtz	60	1335	976440	7869.94
 data/g07.dat	scf	60	1335	282	17.945
+data/g07.dat	mtz	60	1335	976440	7869.94
+data/g07.dat	scf	150	4534	486	85.96
+data/g07.dat	mtz	150	4534	22848	550.99
 data/g08.dat	scf	80	1620	461	71.1
 data/g08.dat	scf	200	5787	461	145.743
-data/g07.dat	scf	150	4534	977	44.78
+data/g08.dat	mtz	200	5787	258769	7040.26
+data/g07.dat	mtz	60	1335	26393	391.67	* = with original version
