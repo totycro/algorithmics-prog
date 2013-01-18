@@ -7,6 +7,8 @@
 
 #include <iostream>
 
+#define STRENGTHEN_CONSTRAINTS
+
 using namespace std;
 
 ILOSTLBEGIN

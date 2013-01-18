@@ -11,6 +11,7 @@ kMST_ILP::kMST_ILP( Instance& _instance, string _model_type, int _k ) :
 void kMST_ILP::solve()
 {
 	try {
+		bool DO_LOGGING = false;
 		// initialize CPLEX
 		env = IloEnv();
 		model = IloModel( env );
@@ -34,6 +35,11 @@ void kMST_ILP::solve()
 		//cplex.exportModel( "model.lp" );
 		// set parameters
 		setCPLEXParameters();
+
+		// turn off logging
+		if (!DO_LOGGING) {
+			cplex.setOut(env.getNullStream());
+		}
 
 		// solve model
 		cout << "Calling CPLEX solve ...\n";
@@ -62,6 +68,7 @@ void kMST_ILP::solve()
 				uRes = IloNumArray(env, 0);
 			}
 		}
+		if (DO_LOGGING) {
 		cout << "Edges:\n";
 
 		stringstream edgeLabels; // for debug output MCF
@@ -124,29 +131,13 @@ void kMST_ILP::solve()
 				}
 			}
 		}
-
-
 		if (false) {
 			cout << "\nscf-tree: \n";
 			tree.print(cout);
 		}
 
-		/* // Debug output
-		if (model_type == "mcf") {
-			cout << "Flow:\n";
-			cout << edgeLabels.str() << endl ;
+		}// do logging
 
-			for (unsigned int j=1; j<flow_mcf.size(); j++) { //  commodity j
-				IloNumArray flow(env);
-				cplex.getValues(flow_mcf[j], flow);
-
-				cout << " " << setw(2) << j << ":";
-				for (unsigned int i=0; i<flow.getSize(); i++) {
-					cout << "  " << abs(flow[i]);
- 				}
-				cout << endl;
-			}
-		}*/
 
 
 
@@ -323,7 +314,7 @@ void kMST_ILP::modelSCF()
 	// single commodity flow model
 
 	// flow for each edge
-	flow_scf = IloNumVarArray(env, edges.getSize()); // TODO Works horrible with INTvar - compare benchmarks
+	flow_scf = IloNumVarArray(env, edges.getSize()); 
 
 	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
 		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
@@ -335,10 +326,13 @@ void kMST_ILP::modelSCF()
 		// max possible flow is k for the connection from the artificial root to the real node
 		// the other ones then can carry a maximum of k-1, since the real root eats the first one
 
+		#ifdef STRENGTHEN_CONSTRAINTS
 		bool firstHalf = ( i < instance.n_edges);
 		int startNode = firstHalf ? instance.edges[i].v1 : instance.edges[i - instance.n_edges].v2;
-
 		int maxFlowOnEdge = (startNode == 0) ? k : k-1;
+		#else
+		int maxFlowOnEdge = k;
+		#endif
 
 		// at most k, also ensures that edge is taken if flow is non-zero
 		model.add(flow_scf[i] <= maxFlowOnEdge*edges[i]);
@@ -395,19 +389,52 @@ void kMST_ILP::modelMCF()
 {
 	//  multi commodity flow model
 
-
+	vector<IloBoolVarArray> flow;
 	// flow for each edge and commodity
-	flow_mcf.resize(instance.n_nodes);
+	flow.resize(instance.n_nodes);
 
-	for (unsigned int j=0; j<flow_mcf.size(); j++) { //  commodity j
-		flow_mcf[j] = IloBoolVarArray(env, edges.getSize());
-		for (unsigned int i=0; i<flow_mcf[j].getSize(); i++) {
-			flow_mcf[j][i] = IloBoolVar(env, Tools::indicesToString("f", instance.edges[i % instance.n_edges ].v1, instance.edges[i % instance.n_edges].v2).c_str());
-			flow_mcf[j][i].setLB(0);
-			flow_mcf[j][i].setUB(1);
-			// TODO strenghten:no flow back to root
+	for (unsigned int j=0; j<flow.size(); j++) { //  commodity j
+		flow[j] = IloBoolVarArray(env, edges.getSize());
+		for (unsigned int i=0; i<flow[j].getSize(); i++) { // edge i
+
+			Instance::Edge edgeInst = instance.edges[ i % instance.n_edges ];
+
+			uint start = edgeInst.v1, end = edgeInst.v2;
+             		if (i >= instance.n_edges) { // upper half
+				uint tmp = start;
+				start = end;
+				end = tmp;
+			}
+
+			flow[j][i] = IloBoolVar(env, Tools::indicesToString("f", start, end).c_str());
+			
+			#ifdef STRENGTHEN_CONSTRAINTS
+			// strenghten:no flow back to root
+			if (end == 0) {
+				flow[j][i].setUB(0);
+			}
+			#endif
+
  		}
 	}
+
+	// preperation
+
+	IloExprArray incomingEdgesSum = IloExprArray(env, instance.n_nodes);
+
+	for (unsigned int commodity=0; commodity<flow.size(); commodity++) { //  commodity k for vertex k
+		vector<u_int> incomingEdgeIds, outgoingEdgeIds;
+		getIncomingEdgeIds(incomingEdgeIds, commodity);
+
+		incomingEdgesSum [commodity] = IloExpr(env);
+
+		for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+			incomingEdgesSum[commodity] += edges[ incomingEdgeIds[i] ];
+		}
+
+
+	}
+
 
 	// node 0 emits k-1 different commodities
        // tries all n-1, but only sends to nodes with incoming edge
@@ -415,86 +442,82 @@ void kMST_ILP::modelMCF()
 		vector<u_int> outgoingEdgeIds;
 		getOutgoingEdgeIds(outgoingEdgeIds, 0);
 
-		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+		for (unsigned int commodity=1; commodity<flow.size(); commodity++) { //  commodity k for vertex k
 			IloExpr outgoingFlowSum(env);
 			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
-				outgoingFlowSum += flow_mcf[ commodity ][ outgoingEdgeIds[i] ];
-			}
-			vector<u_int> incomingEdgeIds;
-			getIncomingEdgeIds(incomingEdgeIds, commodity);
-
-			IloExpr incomingEdgesSum(env);
-			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
-				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+				outgoingFlowSum += flow[ commodity ][ outgoingEdgeIds[i] ];
 			}
 
 			// only send out commodity for those vertices
 			//that a part of the k-MST
-			model.add(outgoingFlowSum == incomingEdgesSum);
+			model.add(outgoingFlowSum == incomingEdgesSum[commodity]);
 
 			outgoingFlowSum.end();
-			incomingEdgesSum.end();
+
 
  		}
 	}
 
 	// each vertex recieves his commodity (if part of k-MST)
-		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
-			vector<u_int> incomingEdgeIds; //TODO twice ?
-
+		for (unsigned int commodity=1; commodity<flow.size(); commodity++) { //  commodity k for vertex k
+			vector<u_int> incomingEdgeIds;
 			getIncomingEdgeIds(incomingEdgeIds, commodity);
-
 			IloExpr incomingFlowSum(env);
-			IloExpr incomingEdgesSum(env);
 			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
-				incomingFlowSum += flow_mcf[ commodity ][ incomingEdgeIds[i] ];
-				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+				incomingFlowSum += flow[ commodity ][ incomingEdgeIds[i] ];
 			}
 
-			model.add(incomingFlowSum == incomingEdgesSum);
+			model.add(incomingFlowSum == incomingEdgesSum[commodity]);
 
 			incomingFlowSum.end();
-			incomingEdgesSum.end();
-
 		}
+
 
 	// each vertex forwards all other commodities
-	for (unsigned int vertex=1; vertex<flow_mcf.size(); vertex++) {
-		vector<u_int> outgoingEdgeIds, incomingEdgeIds; //TODO twice ?
-		getIncomingEdgeIds(incomingEdgeIds, vertex);
-		IloExpr incomingEdgesSum(env);
-		for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
-			incomingEdgesSum += edges[ incomingEdgeIds[i] ];
-		}
+	for (unsigned int vertex=1; vertex<flow.size(); vertex++) {
+		vector<u_int> outgoingEdgeIds, incomingEdgeIds; 
+		getIncomingEdgeIds(incomingEdgeIds, vertex); // these are different from the edges above
 		getOutgoingEdgeIds(outgoingEdgeIds, vertex);
 
-		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
+		for (unsigned int commodity=1; commodity<flow.size(); commodity++) { //  commodity k for vertex k
 
 			IloExpr incomingFlowSum(env);
 			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
-				incomingFlowSum += flow_mcf[ commodity ][ incomingEdgeIds[i] ];
+				incomingFlowSum += flow[ commodity ][ incomingEdgeIds[i] ];
 			}
 
 			IloExpr outgoingFlowSum(env);
 			for (unsigned int i=0; i<outgoingEdgeIds.size(); i++) {
-				outgoingFlowSum += flow_mcf[ commodity ][ outgoingEdgeIds[i] ];
+				outgoingFlowSum += flow[ commodity ][ outgoingEdgeIds[i] ];
 			}
 			if (vertex != commodity) {
 				model.add(incomingFlowSum - outgoingFlowSum == 0);
 			}
-			incomingFlowSum.end();
+			//incomingFlowSum.end();
 			outgoingFlowSum.end();
 		}
-		incomingEdgesSum.end();
+
  	}
+
+
+
 
 	// restrict flow to selected edges
 	for (unsigned int edgeId=0; edgeId < edges.getSize(); edgeId++) {
-		for (unsigned int commodity=1; commodity<flow_mcf.size(); commodity++) { //  commodity k for vertex k
-			model.add ( flow_mcf[commodity][edgeId] <= edges[edgeId] );
+		for (unsigned int commodity=1; commodity<flow.size(); commodity++) { //  commodity k for vertex k
+			model.add ( flow[commodity][edgeId] <= edges[edgeId] );
 		}
 	}
+
+	for (unsigned int commodity=1; commodity<flow.size(); commodity++) { //  commodity k for vertex k
+		incomingEdgesSum[commodity].end();
+	}
+
+	// copy for former access
+	flow_mcf = flow;
+
 }
+
 
 void kMST_ILP::modelMTZ()
 {
@@ -506,10 +529,13 @@ void kMST_ILP::modelMTZ()
 	u = IloIntVarArray(env, instance.n_nodes);
 	for (unsigned int i=0; i<u.getSize(); i++) {
 		u[i] = IloIntVar(env, 0, u_max, Tools::indicesToString("u", i).c_str());
+
+		#ifdef STRENGTHEN_CONSTRAINTS
 		// strengthen constraints for on artificial nodes
 		if (i > 0) {
 			u[i].setLB(1); // TODO benchmark
 		}
+		#endif
 	}
 
 	// 0 vertex has fixed value
@@ -538,14 +564,84 @@ void kMST_ILP::modelMTZ()
 
 			// NOTE: this should be used for big instances (e.g. g06), but leads to worse runtimes for smaller instances
 
-			//model.add( u[end] <= edges[edgeId] + ( (1 - edges[edgeId]) * u_max  ) );
+			model.add( u[end] <= edges[edgeId] + ( (1 - edges[edgeId]) * u_max  ) );
 
 		}
 
 
 	}
+	#ifdef STRENGTHEN_CONSTRAINTS
+	IloExpr uSum(env);
+	#endif
 
-	// TODO: alldifferent for all u (but umax)
+	// if there are no incoming edges to a vertex, its u_i is maximal
+	// this prevents any outgoing edges
+	// the condition is not stated for node 0 to allow a start
+	for (unsigned int vertex=1; vertex<instance.n_nodes; vertex++) {
+		IloExpr incomingEdgesSum(env);
+
+		{
+			vector<u_int> incomingEdgeIds;
+			getIncomingEdgeIds(incomingEdgeIds, vertex);
+
+			for (unsigned int i=0; i<incomingEdgeIds.size(); i++) {
+				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
+			}
+		}
+		#ifdef STRENGTHEN_CONSTRAINTS
+		uSum += u[vertex];
+		#endif
+		// if there are no incoming edges, the subtrahend is 0, so u_vertex is forced to be maximal
+		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't go into effect
+		model.add( (u_max - (incomingEdgesSum * u_max)) <= u[vertex]);
+
+		// this is the same but probably more efficient, maybe test with it:
+		//model.add( IloIfThen(env, incomingEdgesSum == 0, u[vertex] == u_max) );
+
+		incomingEdgesSum.end();
+	}
+	#ifdef STRENGTHEN_CONSTRAINTS
+	//strengthening conntraint to better describe distribution of u values
+	// we wanted alldifferent(exponentially many constraints), but this has to suffice
+	int sumOverU = u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
+		    k * (k+1) / 2; //small gauss	
+	model.add( uSum == sumOverU);
+	#endif 
+}
+
+/* original version, results in excellent values for 07/60, but is worse for all others
+void kMST_ILP::modelMTZ()
+{
+	// Miller-Tucker-Zemlin model
+
+	IloInt u_max = instance.n_nodes;
+
+	// some u_i for each vertex
+	u = IloIntVarArray(env, instance.n_nodes);
+	for (unsigned int i=0; i<u.getSize(); i++) {
+		u[i] = IloIntVar(env, 0, u_max, Tools::indicesToString("u", i).c_str());
+	}
+
+	// 0 vertex has fixed value
+	u[0].setUB(0);
+
+	// if there is a connection x_ij, the u_j is greater than u_i
+	for (unsigned int edgeId=0; edgeId < edges.getSize(); edgeId++) {
+		Instance::Edge edgeInst = instance.edges[ edgeId % instance.n_edges ];
+		uint start = edgeInst.v1, end = edgeInst.v2;
+
+		if (edgeId >= instance.n_edges) { // upper half
+			uint tmp = start;
+			start = end;
+			end = tmp;
+		}
+
+		//cerr << "edge " << edgeId << " from " << start << " to " << end << endl;
+
+		// u_start + edge < u_end + (1-edge) * M
+		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  <= 0 );
+	}
+
 	// if there are no incoming edges to a vertex, its u_i is maximal
 	// this prevents any outgoing edges
 	// the condition is not stated for node 0 to allow a start
@@ -563,6 +659,7 @@ void kMST_ILP::modelMTZ()
 
 		// if there are no incoming edges, the subtrahend is 0, so u_vertex is forced to be maximal
 		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't go into effect
+		// NOTE: this is a quite loose model
 		model.add( (u_max - (incomingEdgesSum * u_max)) <= u[vertex]);
 
 		// this is the same but probably more efficient, maybe test with it:
@@ -571,6 +668,8 @@ void kMST_ILP::modelMTZ()
 		incomingEdgesSum.end();
 	}
 }
+*/
+
 
 
 kMST_ILP::~kMST_ILP()

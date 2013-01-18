@@ -55,6 +55,8 @@ int main( int argc, char *argv[] )
 	// solve instance
 	double objectiveValue = 0;
 	int nodes = 0;
+	
+	cerr << "Executing " << rounds << " rounds of " << file << " with " << model_type << " k=" << k << "\r\n";
 
 	for (int round=0; round<rounds; round++) {
 		kMST_ILP ilp( instance, model_type, k );
