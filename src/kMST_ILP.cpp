@@ -270,6 +270,26 @@ void kMST_ILP::addTreeConstraints()
 		}
 
 		model.add(incomingSum <= 1);
+
+#ifdef STRENGTHEN_CONSTRAINTS
+		// only allow outgoing edges in case there are incoming ones (needs scaling by k)
+		IloExpr outgoingSum(env);
+
+		{
+			vector<u_int> outgoingEdges;
+			getOutgoingEdgeIds(outgoingEdges, i);
+
+			for (unsigned int i=0; i<outgoingEdges.size(); i++) {
+				outgoingSum += edges[outgoingEdges[i]];
+			}
+		}
+
+		if (i != 0) {
+			model.add(incomingSum*k >= outgoingSum);
+		}
+		outgoingSum.end();
+#endif
+
 		incomingSum.end();
 	}
 
@@ -314,7 +334,7 @@ void kMST_ILP::modelSCF()
 	// single commodity flow model
 
 	// flow for each edge
-	flow_scf = IloNumVarArray(env, edges.getSize()); 
+	flow_scf = IloNumVarArray(env, edges.getSize());
 
 	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
 		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
@@ -407,7 +427,7 @@ void kMST_ILP::modelMCF()
 			}
 
 			flow[j][i] = IloBoolVar(env, Tools::indicesToString("f", start, end).c_str());
-			
+
 			#ifdef STRENGTHEN_CONSTRAINTS
 			// strenghten:no flow back to root
 			if (end == 0) {
@@ -475,7 +495,7 @@ void kMST_ILP::modelMCF()
 
 	// each vertex forwards all other commodities
 	for (unsigned int vertex=1; vertex<flow.size(); vertex++) {
-		vector<u_int> outgoingEdgeIds, incomingEdgeIds; 
+		vector<u_int> outgoingEdgeIds, incomingEdgeIds;
 		getIncomingEdgeIds(incomingEdgeIds, vertex); // these are different from the edges above
 		getOutgoingEdgeIds(outgoingEdgeIds, vertex);
 
@@ -604,9 +624,9 @@ void kMST_ILP::modelMTZ()
 	//strengthening conntraint to better describe distribution of u values
 	// we wanted alldifferent(exponentially many constraints), but this has to suffice
 	int sumOverU = u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
-		    k * (k+1) / 2; //small gauss	
+		    k * (k+1) / 2; //small gauss
 	model.add( uSum == sumOverU);
-	#endif 
+	#endif
 }
 
 /* original version, results in excellent values for 07/60, but is worse for all others
