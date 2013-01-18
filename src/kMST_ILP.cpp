@@ -270,6 +270,27 @@ void kMST_ILP::addTreeConstraints()
 		}
 
 		model.add(incomingSum <= 1);
+
+
+		#ifdef STRENGTHEN_CONSTRAINTS
+		// only allow outgoing edges in case there are incoming ones (needs scaling by k)
+		IloExpr outgoingSum(env);
+
+		{
+			vector<u_int> outgoingEdges;
+			getOutgoingEdgeIds(outgoingEdges, i);
+
+			for (unsigned int i=0; i<outgoingEdges.size(); i++) {
+				outgoingSum += edges[outgoingEdges[i]];
+			}
+		}
+
+		if (i != 0) {
+			model.add(incomingSum*k >= outgoingSum);
+		}
+		outgoingSum.end();
+		#endif
+
 		incomingSum.end();
 	}
 
