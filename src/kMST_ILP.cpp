@@ -573,7 +573,8 @@ void kMST_ILP::modelMTZ()
 
 	#ifdef STRENGTHEN_CONSTRAINTS
 	IloExpr uSum(env);
-	
+	#endif
+
 
 	// if there are no incoming edges to a vertex, its u_i is maximal
 	// this prevents any outgoing edges
@@ -609,6 +610,9 @@ void kMST_ILP::modelMTZ()
 		    k * (k+1) / 2; //small gauss	
 	model.add( uSum <= sumOverU);
 	#endif 
+
+
+
 }
 
 /* original version, results in excellent values for 07/60, but is worse for all others
