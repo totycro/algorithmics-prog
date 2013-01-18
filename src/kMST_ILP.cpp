@@ -270,26 +270,6 @@ void kMST_ILP::addTreeConstraints()
 		}
 
 		model.add(incomingSum <= 1);
-
-#ifdef STRENGTHEN_CONSTRAINTS
-		// only allow outgoing edges in case there are incoming ones (needs scaling by k)
-		IloExpr outgoingSum(env);
-
-		{
-			vector<u_int> outgoingEdges;
-			getOutgoingEdgeIds(outgoingEdges, i);
-
-			for (unsigned int i=0; i<outgoingEdges.size(); i++) {
-				outgoingSum += edges[outgoingEdges[i]];
-			}
-		}
-
-		if (i != 0) {
-			model.add(incomingSum*k >= outgoingSum);
-		}
-		outgoingSum.end();
-#endif
-
 		incomingSum.end();
 	}
 
@@ -334,7 +314,7 @@ void kMST_ILP::modelSCF()
 	// single commodity flow model
 
 	// flow for each edge
-	flow_scf = IloNumVarArray(env, edges.getSize());
+	flow_scf = IloNumVarArray(env, edges.getSize()); 
 
 	for (unsigned int i=0; i<flow_scf.getSize(); i++) {
 		flow_scf[i] = IloNumVar(env, Tools::indicesToString("flow", i).c_str());
@@ -427,7 +407,7 @@ void kMST_ILP::modelMCF()
 			}
 
 			flow[j][i] = IloBoolVar(env, Tools::indicesToString("f", start, end).c_str());
-
+			
 			#ifdef STRENGTHEN_CONSTRAINTS
 			// strenghten:no flow back to root
 			if (end == 0) {
@@ -495,7 +475,7 @@ void kMST_ILP::modelMCF()
 
 	// each vertex forwards all other commodities
 	for (unsigned int vertex=1; vertex<flow.size(); vertex++) {
-		vector<u_int> outgoingEdgeIds, incomingEdgeIds;
+		vector<u_int> outgoingEdgeIds, incomingEdgeIds; 
 		getIncomingEdgeIds(incomingEdgeIds, vertex); // these are different from the edges above
 		getOutgoingEdgeIds(outgoingEdgeIds, vertex);
 
@@ -551,7 +531,7 @@ void kMST_ILP::modelMTZ()
 		u[i] = IloIntVar(env, 0, u_max, Tools::indicesToString("u", i).c_str());
 
 		#ifdef STRENGTHEN_CONSTRAINTS
-		// strengthen constraints for on artificial nodes
+		// strengthen constraints for non artificial nodes
 		if (i > 0) {
 			u[i].setLB(1); // TODO benchmark
 		}
@@ -590,9 +570,10 @@ void kMST_ILP::modelMTZ()
 
 
 	}
+
 	#ifdef STRENGTHEN_CONSTRAINTS
 	IloExpr uSum(env);
-	#endif
+	
 
 	// if there are no incoming edges to a vertex, its u_i is maximal
 	// this prevents any outgoing edges
@@ -620,13 +601,14 @@ void kMST_ILP::modelMTZ()
 
 		incomingEdgesSum.end();
 	}
+
 	#ifdef STRENGTHEN_CONSTRAINTS
 	//strengthening conntraint to better describe distribution of u values
 	// we wanted alldifferent(exponentially many constraints), but this has to suffice
 	int sumOverU = u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
-		    k * (k+1) / 2; //small gauss
-	model.add( uSum == sumOverU);
-	#endif
+		    k * (k+1) / 2; //small gauss	
+	model.add( uSum <= sumOverU);
+	#endif 
 }
 
 /* original version, results in excellent values for 07/60, but is worse for all others
