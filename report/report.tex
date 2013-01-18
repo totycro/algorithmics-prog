@@ -1,7 +1,7 @@
 \documentclass[,%fontsize=11pt,%
 			paper=a4,% 
 			%DIV12, % mehr text pro seite als defaultyyp
-			DIV12,
+			DIV14,
 			%DIV=calc,%
 			%twoside=false,%
 			liststotoc,
@@ -147,23 +147,19 @@ As further optimisation, we tried to restrict the flow variables to integer valu
 	- every node eats/flow conservation
 \end{comment}
 
-\subsection{Multi Commodity Flow Formulation}
+
 \subsection{Multi Commodity Flow Formulation}
 The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex seperatly, called a commodity. Formally the $flow$ is now $\ilc{flow[k][e]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $e \in \ilc{edges}$; The flow is send out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
 
-\subsubsection{Constraints}
-Additional variables: The \ilc{incomingFlowSum[commodity]} is defined as the sum of all \ilc{flow} on all edges ending in vertex \ilc{commodity} on commodity-level \ilc{commodity} of the flow.
-\begin{equation}\label{eq:mfcInFlow}
-	\ilc{incomingFlowSum[commodity]} = \sum_{\mathclap{\forall \ilc{edge} \in \ilc{edges}| \ilc{edge.v2} = \ilc{commodity}}} \ilc{flow[commodity][edge]} 
-\quad \forall \ilc{commodity} \in V \textbackslash \{0\}
-\end{equation}
-
-Additional variables: The \ilc{incomingEdgesSum[commodity]} is defined as the sum of all edges ending in vertex \ilc{commodity} that are part of the \kmst.
+\subsubsection{Additional (re-used) variables}
+The \ilc{incomingEdgesSum[commodity]} is defined as the sum of all edges ending in vertex \ilc{commodity} that are part of the \kmst.
 \begin{equation}\label{eq:mfcInEdges}
 	\ilc{incomingEdgesSum[commodity]} = \sum_{\mathclap{\forall \ilc{edge} \in \ilc{edges} | \ilc{edge.v2} = \ilc{commodity}}} \ilc{edge} 
 \quad \forall \ilc{commodity} \in V \textbackslash \{0\}
 \end{equation}
 
+
+\subsubsection{Constraints}
 
 This constraint implies the sending of the commodity for each vertex that is part of the \kmst\ (=has one incoming edge).
 \begin{equation}\label{eq:mfcSend}
@@ -171,28 +167,151 @@ This constraint implies the sending of the commodity for each vertex that is par
 \quad \forall \ilc{commodity} \in V  \textbackslash \{0\}
 \end{equation}
 
-
 Each vertex recieves his commodity (if part of \kmst).
 \begin{equation}\label{eq:mfcRec}
-	 \ilc{incomingFlowSum[commodity]} = \ilc{incomingEdgesSum[commodity]}
+	  \sum_{\mathclap{\forall \ilc{edge} \in \ilc{edges}| \ilc{edge.v2} = \ilc{commodity}}} \ilc{flow[commodity][edge]} 
+ = \ilc{incomingEdgesSum[commodity]}
 \quad \forall \ilc{commodity} \in V  \textbackslash \{0\}
+\end{equation}
+
+Each vertex forwards all other commodities
+\begin{equation}\label{eq:mfcForward}
+\begin{split}
+\sum_{\mathclap i \in \ilc{incomingEdges(v)}} \ilc{flow[commodity][i]} = \sum_{ i \in \ilc{outgoingEdges(v)}} \ilc{flow[commodity][i]} \\
+\ \forall ilc{commodity} \in V  \textbackslash \{0\}
+\ \forall v \in V  \textbackslash \{0\}
+\quad \ilc{commodity} \neq v
+\end{split}
 \end{equation}
 
 Flow is restricted to selected edges
 
 \begin{equation}\label{eq:mfcFlowEdge}
- \ilc{flow[commodity][e]} \leq \ilc{edges[e]} \quad \forall \ilc{e}
+ \ilc{flow[commodity][e]} \leq \ilc{edges[e]} \quad \forall \forall e \in \ilc{edges}
 \forall \ilc{commodity} \in V  \textbackslash \{0\}
 \end{equation}
 
 \subsubsection{Strengthening Constraints}
 
+There cannot be flow to the root node.
+\begin{equation}\label{eq:mfcNoFlow}
+ \ilc{flow[commodity][i]} = 0
+\quad \forall i \in \ilc{incomingEdges(0)} | 
+\quad \forall \ilc{commodity} \in V
+\end{equation}
+
+
+\subsection{Sequential Formulation}
+The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, refered as MTZ) is  based on an additional variable \ilc{u[i]} $\in \{0..u_{max}\}$ for each node i. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
+
+\subsubsection{Constraints}
+The main constraint only is active when \ilc{edges[e]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u} value of the start of the edge to be at least one less than the end of the edge, this inducing the order.
+\begin{equation}\label{eq:mztOrder}
+ (\ilc{u[e.start]} + \ilc{edges[e]})  - \ilc{u[e.end]} - ( ( 1 - \ilc{edges[e]}) * u_{max} )  <= 0
+\ \ \forall e \in \ilc{edges}
+\end{equation}
+
+This constraint forces all u values for unused nodes (which have no incoming nodes) to the value $u_{max}$, so that by above rule \eqref{eq:mztOrder}, that cannot have outgoing edges.
+\begin{equation}\label{eq:mztUnused}
+ u_{max}*(1 - (\sum_{ i \in \ilc{incomingEdges(v)}} \ilc{edges[i]} )) <= \ilc{u[vertex]}
+ \ \forall v \in V  \textbackslash \{0\}
+\end{equation}
+
+
+\subsubsection{Strengthening Constraints}
+For all non artificial nodes, we know that the u value has to be at least 1.
+\begin{equation}\label{eq:mztNodes1}
+ \ilc{u[v]} >= 1
+ \ \forall v \in V  \textbackslash \{0\}
+\end{equation}
+
+We know that the sum of all u values can be at most $(n-1 - k) * u_{max}$ plus $\sum_1^k{k}$
+
+\begin{equation}\label{eq:mztMaxU}
+\sum_{v \in V}{\ilc{u[v]}} \leq u_{max} * ( n - 1 - k ) + {k * (k+1)} / 2
+\end{equation}
+
+
+\section{Results}
+We executed all the tests on the provided ADS Server on a single core, without output and in the production compile mode. All but the very large instances have been run several times to minimize the error on the execution times. The last two columns are the results of the formulation without the strengthening constraints.
+
+
+\subsection{Single Commodity Flow Formulation}
+
+\begin{tabular}{||c||cccr|cr||}
+\hline
+test     & k & objective  & branch-n-bound & running   & BnB nodes & running\\
+instance &   & function   & nodes          & time (sec)& (w/o SC)  & time w/o SC \\
+\hline
+g01.dat	&	2	&	46	&	0	&	0.008	&	0	&	0.012	\\
+g01.dat	&	5	&	477	&	0	&	0.020	&	0	&	0.018	\\
+g02.dat	&	4	&	373	&	5	&	0.029	&	5	&	0.019	\\
+g02.dat	&	10	&	1390	&	63	&	0.056	&	80	&	0.098	\\
+g03.dat	&	10	&	725	&	0	&	0.086	&	36	&	0.098	\\
+g03.dat	&	25	&	3074	&	31	&	0.192	&	62	&	0.234	\\
+g04.dat	&	14	&	909	&	110	&	0.505	&	216	&	0.353	\\
+g04.dat	&	35	&	3292	&	196	&	0.526	&	69	&	0.459	\\
+g05.dat	&	20	&	1235	&	180	&	0.395	&	119	&	0.415	\\
+g05.dat	&	50	&	4898	&	339	&	0.802	&	286	&	0.934	\\
+g06.dat	&	40	&	2068	&	1215	&	12.648	&	1799	&	11.498	\\
+g06.dat	&	100	&	6705	&	1059	&	8.125	&	1587	&	11.510	\\
+g07.dat	&	60	&	1335	&	811	&	80.065	&	282	&	18.390	\\
+g07.dat	&	150	&	4534	&	486	&	85.780	&	977	&	49.095	\\
+g08.dat	&	80	&	1620	&	468	&	124.240	&	461	&	70.590	\\
+g08.dat	&	200	&	5787	&	461	&	125.555	&	461	&	144.505	\\
+\hline
+\end{tabular}
+
+
+\subsection{Multi Commodity Flow Formulation}
+
+\begin{tabular}{||c||cccr|cr||}
+\hline
+test     & k & objective  & branch-n-bound & running   & BnB nodes & running\\
+instance &   & function   & nodes          & time (sec)& (w/o SC)  & time w/o SC \\
+\hline
+g01.dat	&	2	&	46	&	0	&	0.079	&	0	&	0.074	\\
+g01.dat	&	5	&	477	&	0	&	0.072	&	0	&	0.073	\\
+g02.dat	&	4	&	373	&	9	&	0.288	&	9	&	0.306	\\
+g02.dat	&	10	&	1390	&	0	&	0.218	&	0	&	0.227	\\
+g03.dat	&	10	&	725	&	0	&	1.933	&	0	&	1.985	\\
+g03.dat	&	25	&	3074	&	0	&	2.444	&	0	&	2.411	\\
+g04.dat	&	14	&	909	&	67	&	10.816	&	67	&	10.264	\\
+g04.dat	&	35	&	3292	&	0	&	12.780	&	0	&	12.610	\\
+g05.dat	&	20	&	1235	&	3	&	36.846	&	3	&	37.666	\\
+g05.dat	&	50	&	4898	&	0	&	29.772	&	0	&	31.894	\\
+g06.dat	&	40	&	2068	&	231	&	2,221.800	&	231	&	2,134.190	\\
+g06.dat	&	100	&	6705	&	9	&	1,939.990	&	9	&	1,996.000	\\
+g07.dat	&	60	&	-	&	-	&	-	&	-	&	-	\\
+g07.dat	&	150	&	-	&	-	&	-	&	-	&	-	\\
+g08.dat	&	80	&	-	&	-	&	-	&	-	&	-	\\
+g08.dat	&	200	&	-	&	-	&	-	&	-	&	-	\\
+\hline
+\end{tabular}
+
+
 
 \subsection{Sequential Formulation}
 
-\section{Results}
-obj value, running times, number of b\&b nodes
+\begin{tabular}{||c||cccr|cr||}
+\hline
+test     & k & objective  & branch-n-bound & running   & BnB nodes & running\\
+instance &   & function   & nodes          & time (sec)& (w/o SC)  & time w/o SC \\
+\hline
+\hline
+\end{tabular}
 
 \section{Interpretation of results}
+...
 
+The SCF model performed best in all instance sizes, followed by the MTZ and the MCF formulation.
+
+...
+
+The MCF wasn't even computable for instances 7 and 8 due to their quadratic number of constraints.
+
+...
+We were suprised, that small changes on the model led to very different results, usually the impact was worse for some and better for other instances. In addition, even for the same model and instance, the runtime fluctuated unusually strong. We tried to compensate this effect by executing several rounds of tests. But overall, we cannot rule out chance as the main contributor to the test results, which makes interpreting the results of strengthening a bit of a gamble.
+
+ 
 \end{document}
