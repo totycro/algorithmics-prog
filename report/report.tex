@@ -82,7 +82,7 @@ Since trees are acyclic, we can require that only one of the two directed edges 
 
 Furthermore, to avoid circles in the set of solutions, we require that each vertex has at most one incoming edge (\eqref{eq:oneIncoming}) with a special treatment of the artificial root node, which must not have any incoming edge at all (\eqref{eq:root0}) but exactly one outgoing node (\eqref{eq:root1}). 
 As the connectivity constraints take effect later, this will ensure that once a node is reached from the root node, there cannot be a path back it (which would form a circle), since then the number of incoming edges would exceed 1.
-In order to add the constraints only for the relevant and existing edges, we implemented two auxiliary functions: \ilc{incomingEdges}, which returns for a node \ilc{j} the set of indices in the \ilc{edges}-array which correspond to edges incoming to \ilc{j}, and \ilc{outgoingEdges}, which works analoguously for outgoing edges.
+In order to add the constraints only for the relevant and existing edges, we implemented two auxiliary functions: \ilc{incomingEdges}, which returns for a node \ilc{j} the set of indices in the \ilc{edges}-array which correspond to edges incoming to \ilc{j}, and \ilc{outgoingEdges}, which works analogously for outgoing edges.
 
 \begin{equation}\label{eq:oneIncoming}
 	\sum_{\mathclap{i\,\in\,\ilc{incomingEdges(j)}}} \ilc{edges}[i] = 1 \quad \forall j \in V
@@ -107,7 +107,7 @@ The central task of this exercise is to ensure the connectivity of the tree, whi
 The sections are split up into the essential core formulations and strengthening constraints, which are not necessary for correctness but lead to a tighter formulation.
 
 \subsubsection{Strengthening Constraints}
-All models were subject to the following constraint, that implies a tighter model. It forces all nodes that do not have an incoming edges to not have any outgoing nodes. Unfortunatly, that does not guarantee connectedness, since it still allows circles.
+All models were subject to the following constraint, that implies a tighter model. It forces all nodes that do not have an incoming edges to not have any outgoing nodes. Unfortunately, that does not guarantee connectedness, since it still allows circles.
 \begin{equation}\label{eq:StrAll}
 	\sum_{\mathclap{i \in \ilc{incomingEdges(j)}}} \ilc{edges}[i] * k
  \quad \geq \quad
@@ -164,7 +164,7 @@ As further optimisation, we tried to restrict the flow variables to integer valu
 
 
 \subsection{Multi Commodity Flow Formulation}
-The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex seperatly, called a commodity. Formally the $flow$ is now $\ilc{flow[k][i]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $i \in \ilc{edges}$; The flow is sent out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
+The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex separately, called a commodity. Formally the $flow$ is now $\ilc{flow[k][i]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $i \in \ilc{edges}$; The flow is sent out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
 
 \subsubsection{Additional (re-used) variables}
 The \ilc{incomingEdgesSum[\commodity]} is defined as the sum of all edges ending in vertex \ilc{\commodity} that are part of the \kmst.
@@ -182,7 +182,7 @@ This constraint implies the sending of the commodity for each vertex that is par
 \quad \forall \ilc{\commodity} \in V  \setminus \{0\}
 \end{equation}
 
-Each vertex recieves his commodity (if part of \kmst):
+Each vertex receives his commodity (if part of \kmst):
 \begin{equation}\label{eq:mfcRec}
 	\sum_{\mathclap{\edge \in \ilc{incomingEdges[j]}}} \ilc{flow[\commodity][\edge]} 
  = \ilc{incomingEdgesSum[\commodity]}
@@ -217,7 +217,7 @@ There cannot be flow to the root node:
 
 
 \subsection{Sequential Formulation}
-The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, refered to as MTZ) is  based on an additional variable \ilc{u[\vertex]} $\in \{0..u_{max}\}$ for each node \vertex. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
+The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, referred to as MTZ) is  based on an additional variable \ilc{u[\vertex]} $\in \{0..u_{max}\}$ for each node \vertex. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
 
 \subsubsection{Constraints}
 The main constraint is only active when \ilc{edges[\edge]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u}-value of the start of the edge to be at least one less than the end of the edge, thus inducing the order.
@@ -349,19 +349,19 @@ $^{(*)}$ = Result not from the final model, but a slightly different formulation
 
 \begin{figure}[htpb]
 	\centering	\includegraphics[width=1.00\textwidth]{chart.png}
-	\caption{Comparision of runtimes between the models}
+	\caption{Comparison of runtimes between the models}
 	\label{fig:chart}
 \end{figure}
 
 
 \section{Interpretation of results}
-Chart \ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable timespan. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
+Chart \ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable time span. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
 
 The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints.
 This however is not just a deficiency but is caused by the tightness of the formulation.
 The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
-We were suprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
+We were surprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
 This effect is particularly visible for the sequential formulation. Here, there are instances where the strengthening constraints speed up the calculation by a factor up to 2 (cf. g05.dat with k=20 or g05.dat with k=50), for other instances however they are detrimental by about the same factor (cf. g04.dat, k=14 or g06.dat, k=100).
 From this we conclude that the proper formulation for a problem strongly depends on the input data and has to be developed for each situation individually (or configured dynamically).
 
