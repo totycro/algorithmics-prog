@@ -319,6 +319,7 @@ g08.dat	&	200	&	-	&	-	&	-	&	-	&	-	\\
 
 \subsection{Sequential Formulation}
 
+\begin{minipage}{\linewidth} % to keep note at bottom on same page
 \begin{tabular}{||c||cccr|cr||}
 \hline
 test     & k & objective  & branch-n-bound & running   & BnB nodes & running\\
@@ -344,8 +345,9 @@ g08.dat	&	200	&	5787	&	94744	&	1,601.900	&	258769	&	7,040.260	\\
 \end{tabular}
 
 $^{(*)}$ = Result not from the final model, but a slightly different formulation due unusually bad influences of optimisations on this instance, which however have been very beneficial for other instances.
+\end{minipage}
 
-\begin{figure}
+\begin{figure}[htpb]
 	\centering	\includegraphics[width=1.00\textwidth]{chart.png}
 	\caption{Comparision of runtimes between the models}
 	\label{fig:chart}
@@ -353,17 +355,17 @@ $^{(*)}$ = Result not from the final model, but a slightly different formulation
 
 
 \section{Interpretation of results}
-Chart ~\ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable timespan. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
-
-...
+Chart \ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable timespan. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
 
 The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints.
 This however is not just a deficiency but is caused by the tightness of the formulation.
 The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
-...
-
 We were suprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
+This effect is particularly visible for the sequential formulation. Here, there are instances where the strengthening constraints speed up the calculation by a factor up to 2 (cf. g05.dat with k=20 or g05.dat with k=50), for other instances however they are detrimental by about the same factor (cf. g04.dat, k=14 or g06.dat, k=100).
+From this we conclude that the proper formulation for a problem strongly depends on the input data and has to be developed for each situation individually (or configured dynamically).
+
+
 In addition, even for the same model and instance, the runtime fluctuated unusually strong.
 We compensated this effect by executing several rounds of tests.
 
