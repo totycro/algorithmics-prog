@@ -357,9 +357,12 @@ Chart ~\ref{fig:chart} shows big differences in the performances of the differen
 
 ...
 
-The MCF wasn't even computable for instances 7 and 8 due to the quadratic number of constraints. 
+The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints.
+This however is not just a deficiency but is caused by the tightness of the formulation.
+The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
 ...
+
 We were suprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
 In addition, even for the same model and instance, the runtime fluctuated unusually strong.
 We compensated this effect by executing several rounds of tests.
