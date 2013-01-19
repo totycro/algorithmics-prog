@@ -49,6 +49,12 @@
 \sethlcolor{grey2}
 \newcommand{\ilc}[1]{\hl{\texttt{#1}}} % ilc = inline code
 
+
+\newcommand{\commodity}{j}
+\newcommand{\vertex}{j}
+\newcommand{\edge}{i}
+\newcommand{\forallEdges}{\ensuremath{0 \leq \edge \leq 2|E|}}
+
 \title{Report on the implementation of the \kmst\ problem as integer linear program}
 \author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ 0627958}
 
@@ -103,10 +109,10 @@ The sections are split up into the essential core formulations and strengthening
 \subsubsection{Strengthening Constraints}
 All models were subject to the following constraint, that implies a tighter model. It forces all nodes that do not have an incoming edges to not have any outgoing nodes. Unfortunatly, that does not guarantee connectedness, since it still allows circles.
 \begin{equation}\label{eq:StrAll}
-	 \sum_{{\forall \ilc{edge} \in \ilc{edges} | \ilc{edge.v2} = \ilc{v}}} \ilc{edge} * k
-\geq
- \sum_{{\forall \ilc{edge} \in \ilc{edges} | \ilc{edge.v1} = \ilc{v}}} \ilc{edge} 
-\quad \forall \ilc{v} \in V \textbackslash \{0\}
+	\sum_{\mathclap{i \in \ilc{incomingEdges(j)}}} \ilc{edges}[i] * k
+ \quad \geq \quad
+	\sum_{\mathclap{i \in \ilc{outgoingEdges(j)}}} \ilc{edges}[i]
+\quad \forall \ilc{j} \in V \setminus \{0\}
 \end{equation}
 
 \subsection{Single Commodity Flow Formulation}
@@ -118,7 +124,7 @@ If such a path from the root node to every solution node exists, it is ensured t
 The concrete modelling is based upon an array of flow values for each edge named \ilc{flow\_scf}.
 The variables of this array are constrained to take nonnegative values up to $k$, where the respective value in \ilc{edges} serves as activation flag: A flow greater than 0 is only allowed in case the edge is taken:
 \begin{equation}\label{eq:scf1}
-	0 \leq \ilc{flow\_scf}[i] \leq k * \ilc{edges}[i] \quad 0 \leq i \leq 2|E|
+	0 \leq \ilc{flow\_scf}[\edge] \leq k * \ilc{edges}[\edge] \quad \forallEdges 
 \end{equation}
 
 The artificial root node $0$ sends out $k$ units of flow:\nolinebreak
@@ -158,13 +164,13 @@ As further optimisation, we tried to restrict the flow variables to integer valu
 
 
 \subsection{Multi Commodity Flow Formulation}
-The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex seperatly, called a commodity. Formally the $flow$ is now $\ilc{flow[k][e]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $e \in \ilc{edges}$; The flow is send out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
+The Multi Commodity Flow Formulation is based on the Single Commodity Flow Formulation, but instead of single flow, it defines a flow for each vertex seperatly, called a commodity. Formally the $flow$ is now $\ilc{flow[k][i]} \in \left\{0,1\right\}$ , which is the flow for commodity k, that is destined for vertex k, on the edge $i \in \ilc{edges}$; The flow is sent out from the root, forwarded by each node that isn't the destination, and finally consumed by the destination node.
 
 \subsubsection{Additional (re-used) variables}
-The \ilc{incomingEdgesSum[commodity]} is defined as the sum of all edges ending in vertex \ilc{commodity} that are part of the \kmst.
+The \ilc{incomingEdgesSum[\commodity]} is defined as the sum of all edges ending in vertex \ilc{\commodity} that are part of the \kmst.
 \begin{equation}\label{eq:mfcInEdges}
-	\ilc{incomingEdgesSum[commodity]} = \sum_{\mathclap{\forall \ilc{edge} \in \ilc{edges} | \ilc{edge.v2} = \ilc{commodity}}} \ilc{edge} 
-\quad \forall \ilc{commodity} \in V \textbackslash \{0\}
+	\ilc{incomingEdgesSum[\commodity]} = \sum_{\mathclap{i \in \ilc{incomingEdges(\commodity)}}} \ilc{edges}[i]
+\quad \forall \ilc{\commodity} \in V \setminus \{0\}
 \end{equation}
 
 
@@ -172,77 +178,84 @@ The \ilc{incomingEdgesSum[commodity]} is defined as the sum of all edges ending 
 
 This constraint implies the sending of the commodity for each vertex that is part of the \kmst\ (=has one incoming edge).
 \begin{equation}\label{eq:mfcSend}
-	\sum_{\mathclap{\forall e|i=0, j \neq 0}}^{} \ilc{flow[commodity][e]} = \ilc{incomingEdgesSum[commodity]}
-\quad \forall \ilc{commodity} \in V  \textbackslash \{0\}
+	\sum_{\mathclap{\edge \in \ilc{outgoingEdges(0)}}} \ilc{flow[\commodity][\edge]} = \ilc{incomingEdgesSum[\commodity]}
+\quad \forall \ilc{\commodity} \in V  \setminus \{0\}
 \end{equation}
 
-Each vertex recieves his commodity (if part of \kmst).
+Each vertex recieves his commodity (if part of \kmst):
 \begin{equation}\label{eq:mfcRec}
-	  \sum_{\mathclap{\forall \ilc{edge} \in \ilc{edges}| \ilc{edge.v2} = \ilc{commodity}}} \ilc{flow[commodity][edge]} 
- = \ilc{incomingEdgesSum[commodity]}
-\quad \forall \ilc{commodity} \in V  \textbackslash \{0\}
+	\sum_{\mathclap{\edge \in \ilc{incomingEdges[j]}}} \ilc{flow[\commodity][\edge]} 
+ = \ilc{incomingEdgesSum[\commodity]}
+\quad \forall \ilc{\commodity} \in V  \setminus \{0\}
 \end{equation}
 
-Each vertex forwards all other commodities
+Each vertex forwards all other commodities:
 \begin{equation}\label{eq:mfcForward}
 \begin{split}
-\sum_{\mathclap i \in \ilc{incomingEdges(v)}} \ilc{flow[commodity][i]} = \sum_{ i \in \ilc{outgoingEdges(v)}} \ilc{flow[commodity][i]} \\
-\ \forall ilc{commodity} \in V  \textbackslash \{0\}
-\ \forall v \in V  \textbackslash \{0\}
-\quad \ilc{commodity} \neq v
+\sum_{\mathclap i \in \ilc{incomingEdges(v)}} \ilc{flow[\commodity][i]} = \sum_{ i \in \ilc{outgoingEdges(v)}} \ilc{flow[\commodity][i]} 
+\quad \forall \ilc{\commodity}, \ilc{v} \in V  \setminus \{0\}
+, \ilc{\commodity} \neq \ilc{v}
 \end{split}
 \end{equation}
 
-Flow is restricted to selected edges
+Flow is restricted to selected edges:
 
 \begin{equation}\label{eq:mfcFlowEdge}
- \ilc{flow[commodity][e]} \leq \ilc{edges[e]} \quad \forall \forall e \in \ilc{edges}
-\forall \ilc{commodity} \in V  \textbackslash \{0\}
+ \ilc{flow[\commodity][\edge]} \leq \ilc{edges[\edge]}
+ \quad \forallEdges 
+\quad \forall \ilc{\commodity} \in V  \setminus \{0\}
 \end{equation}
 
 \subsubsection{Strengthening Constraints}
 
-There cannot be flow to the root node.
+There cannot be flow to the root node:
 \begin{equation}\label{eq:mfcNoFlow}
- \ilc{flow[commodity][i]} = 0
-\quad \forall i \in \ilc{incomingEdges(0)} | 
-\quad \forall \ilc{commodity} \in V
+ \ilc{flow[\commodity][i]} = 0
+\quad \forall i \in \ilc{incomingEdges(0)}  
+\quad \forall \ilc{\commodity} \in V
 \end{equation}
 
 
 \subsection{Sequential Formulation}
-The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, refered as MTZ) is  based on an additional variable \ilc{u[i]} $\in \{0..u_{max}\}$ for each node i. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
+The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, refered to as MTZ) is  based on an additional variable \ilc{u[\vertex]} $\in \{0..u_{max}\}$ for each node \vertex. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
 
 \subsubsection{Constraints}
-The main constraint only is active when \ilc{edges[e]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u} value of the start of the edge to be at least one less than the end of the edge, this inducing the order.
-\begin{equation}\label{eq:mztOrder}
- (\ilc{u[e.start]} + \ilc{edges[e]})  - \ilc{u[e.end]} - ( ( 1 - \ilc{edges[e]}) * u_{max} )  <= 0
-\ \ \forall e \in \ilc{edges}
-\end{equation}
+The main constraint is only active when \ilc{edges[\edge]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u}-value of the start of the edge to be at least one less than the end of the edge, thus inducing the order.
+%\begin{equation}
+	\begin{gather}
+	\ilc{u[v1]} + \ilc{edges[\edge]} <= \ilc{u[v2]} + ( ( 1 - \ilc{edges[\edge]}) * u_{max} ) \nonumber \\
+	\forall \ilc{v1}| \edge \in \ilc{outgoingEdges(v1)}
+	\quad
+	\forall \ilc{v2} | \edge \in \ilc{incomingEdges(v2)}
+	\quad \forallEdges
+\label{eq:mztOrder}
+\end{gather}
+%\ \ \forall e \in \ilc{edges}
+%\end{equation}
 
-This constraint forces all u values for unused nodes (which have no incoming nodes) to the value $u_{max}$, so that by above rule \eqref{eq:mztOrder}, that cannot have outgoing edges.
+This constraint forces all u values for unused nodes (which have no incoming nodes) to the value $u_{max}$, so that by above rule \eqref{eq:mztOrder} they cannot have outgoing edges.
 \begin{equation}\label{eq:mztUnused}
- u_{max}*(1 - (\sum_{ i \in \ilc{incomingEdges(v)}} \ilc{edges[i]} )) <= \ilc{u[vertex]}
- \ \forall v \in V  \textbackslash \{0\}
+ u_{max}*\left(1 - \sum_{ i \in \ilc{incomingEdges(v)}} \ilc{edges[i]} \right) \leq \ilc{u[\vertex]}
+ \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
 
 \subsubsection{Strengthening Constraints}
 For all non artificial nodes, we know that the u value has to be at least 1.
 \begin{equation}\label{eq:mztNodes1}
- \ilc{u[v]} >= 1
- \ \forall v \in V  \textbackslash \{0\}
+ \ilc{u[\vertex]} \geq 1
+ \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
 We know that the sum of all u values can be at most $(n-1 - k) * u_{max}$ plus $\sum_1^k{k}$
 
 \begin{equation}\label{eq:mztMaxU}
-\sum_{v \in V}{\ilc{u[v]}} \leq u_{max} * ( n - 1 - k ) + {k * (k+1)} / 2
+	\sum_{\vertex \in V}{\ilc{u[\vertex]}} \leq u_{max} * ( n - 1 - k ) + \frac{k * (k+1)}{2}
 \end{equation}
 
 
 \section{Results}
-We executed all the tests on the provided ADS Server on a single core, without output and in the production compile mode. All but the very large instances have been run several times to minimize the error on the execution times. The last two columns are the results of the formulation without the strengthening constraints.
+We executed all the tests on the provided ADS Server on a single core, without status output and in the production compile mode. All but the very large instances have been run several times to equalize random deviations of execution times. The last two columns are the results of the formulation without the strengthening constraints.
 
 
 \subsection{Single Commodity Flow Formulation}
@@ -330,23 +343,25 @@ g08.dat	&	200	&	5787	&	94744	&	1,601.900	&	258769	&	7,040.260	\\
 \hline
 \end{tabular}
 
-$^{(*)}$ = Result not from the final model, but a slightly different formulation.
+$^{(*)}$ = Result not from the final model, but a slightly different formulation due unusually bad influences of optimisations on this instance, which however have been very beneficial for other instances.
 
 \begin{figure}
-	\centering	\includegraphics[width=1.00\textwidth]{D:/privat/Algorithmics/algorithmics-prog/report/chart.png}
+	\centering	\includegraphics[width=1.00\textwidth]{chart.png}
 	\caption{Comparision of runtimes between the models}
 	\label{fig:chart}
 \end{figure}
 
 
 \section{Interpretation of results}
-Chart ~\ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always albe to compute a result in a reasonable timespan. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, they were unable to produce results.
+Chart ~\ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable timespan. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
 
 ...
 
-The MCF wasn't even computable for instances 7 and 8 due to their quadratic number of constraints.
+The MCF wasn't even computable for instances 7 and 8 due to the quadratic number of constraints. 
 
 ...
-We were suprised, that small changes on the model led to very different results, usually the impact was worse for some and better for other instances. In addition, even for the same model and instance, the runtime fluctuated unusually strong. We tried to compensate this effect by executing several rounds of tests. But overall, we cannot rule out chance as the main contributor to the test results, which makes interpreting the results of strengthening a bit of a gamble.
+We were suprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
+In addition, even for the same model and instance, the runtime fluctuated unusually strong.
+We compensated this effect by executing several rounds of tests.
 
 \end{document}
