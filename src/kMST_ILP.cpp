@@ -286,7 +286,7 @@ void kMST_ILP::addTreeConstraints()
 		}
 
 		if (i != 0) {
-			model.add(incomingSum*k >= outgoingSum);
+			model.add(incomingSum*(k-1) >= outgoingSum);
 		}
 		outgoingSum.end();
 		#endif
@@ -544,7 +544,8 @@ void kMST_ILP::modelMTZ()
 {
 	// Miller-Tucker-Zemlin model
 
-	IloInt u_max = k;//instance.n_nodes;
+	IloInt u_max = k ; // version 1
+	IloInt u_max = k * instance.n_nodes; // version 2
 
 	// some u_i for each vertex
 	u = IloIntVarArray(env, instance.n_nodes);
@@ -593,7 +594,7 @@ void kMST_ILP::modelMTZ()
 	}
 
 	#ifdef STRENGTHEN_CONSTRAINTS
-	IloExpr uSum(env);
+	//IloExpr uSum(env);
 	#endif
 
 
@@ -618,6 +619,8 @@ void kMST_ILP::modelMTZ()
 		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't go into effect
 		model.add( (u_max - (incomingEdgesSum * u_max)) <= u[vertex]);
 
+		//model.add( ((incomingEdgesSum * u_max)) >= u[vertex]); all u to 0; does not work - why?
+
 		// this is the same but probably more efficient, maybe test with it:
 		//model.add( IloIfThen(env, incomingEdgesSum == 0, u[vertex] == u_max) );
 
@@ -627,9 +630,9 @@ void kMST_ILP::modelMTZ()
 	#ifdef STRENGTHEN_CONSTRAINTS
 	//strengthening conntraint to better describe distribution of u values
 	// we wanted alldifferent(exponentially many constraints), but this has to suffice
-	int sumOverU = u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
-		    k * (k+1) / 2; //small gauss	
-	model.add( uSum <= sumOverU);
+	//int sumOverU = 0 * u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
+	//	    k * (k+1) / 2; //small gauss	
+	//model.add( uSum <= sumOverU);
 	#endif 
 
 
