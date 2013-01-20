@@ -223,7 +223,7 @@ There cannot be flow to the root node:
 The sequential formulation, proposed by Miller, Tucker and Zemlin (thus, referred to as MTZ) is  based on an additional variable \ilc{u[\vertex]} $\in \{0..u_{max}\}$ for each node \vertex. It gives the tree an order, in which \ilc{u[0]} has the value 0, each node of the \kmst\ has a an increasing value along the path from the root. Nodes, that are not in the \kmst\ get the value $u_{max}$, which is k in our case.
 
 \subsubsection{Constraints}
-The main constraint is only active when \ilc{edges[\edge]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u}-value of the start of the edge to be at least one less than the end of the edge, thus inducing the order.
+The main constraint is only active when \ilc{edges[\edge]} is selected, and thus 1. Otherwise the $u_{max}$ makes sure the constraint always holds. If the edge is selected, it forces the \ilc{u}-value of the start of the edge to be at least one less than the end of the edge, thus inducing an order on the nodes. Along a path from the root to a leaf, the u values will increase strictly monotonic.
 %\begin{equation}
 	\begin{gather}
 	\ilc{u[v1]} + \ilc{edges[\edge]} <= \ilc{u[v2]} + ( ( 1 - \ilc{edges[\edge]}) * u_{max} ) \nonumber \\
@@ -236,26 +236,32 @@ The main constraint is only active when \ilc{edges[\edge]} is selected, and thus
 %\ \ \forall e \in \ilc{edges}
 %\end{equation}
 
-This constraint forces all u values for unused nodes (which have no incoming nodes) to the value $u_{max}$, so that by above rule \eqref{eq:mztOrder} they cannot have outgoing edges.
+This constraint forces all u values for unused nodes (which have no incoming nodes) to the value $u_{max}$, so that by above rule \eqref{eq:mztOrder} they cannot have outgoing edges. This constraint is only needed if strengthening rule \eqref{eq:StrAll} is not present.
 \begin{equation}\label{eq:mztUnused}
  u_{max}*\left(1 - \sum_{ i \in \ilc{incomingEdges(v)}} \ilc{edges[i]} \right) \leq \ilc{u[\vertex]}
  \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
-
 \subsubsection{Strengthening Constraints}
+
 For all non artificial nodes, we know that the u value has to be at least 1.
 \begin{equation}\label{eq:mztNodes1}
  \ilc{u[\vertex]} \geq 1
  \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
-We know that the sum of all u values can be at most $(n-1 - k) * u_{max}$ plus $\sum_1^k{k}$
-
-\begin{equation}\label{eq:mztMaxU}
-	\sum_{\vertex \in V}{\ilc{u[\vertex]}} \leq u_{max} * ( n - 1 - k ) + \frac{k * (k+1)}{2}
+If strengthening rule \eqref{eq:StrAll} is present, this constrain replaces \eqref{eq:mztUnused}. It reduces the choices for the solver by forcing the u value for unused nodes to 0 and thus makes rule \eqref{eq:mztMaxU} possible.
+\begin{equation}\label{eq:mztUnused2}
+ \left( u_{max}* \sum_{ i \in \ilc{incomingEdges(v)}} \ilc{edges[i]} \right) \geq \ilc{u[\vertex]}
+ \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
+For small values of  $u_{max}$, this constraint tightens the selection of the \ilc{u} values, since we know that the sum of all u values can be at most $\sum_1^k{k}$
+\begin{equation}\label{eq:mztMaxU}
+	\sum_{\vertex \in V}{\ilc{u[\vertex]}} \leq \frac{k * (k+1)}{2}
+\end{equation}
+
+The value of $u_{max}$ was also subject to a strengthening or relaxing. The original proposal has $u_{max}$ set to the number of nodes, which makes sense for a TSP that is a path. So we tried n. But in our case, we only have k nodes, so k is a more natural and tighter canditate. But we also tried larger number like $n*k$. Our idea was, that the actual u value does not matter, but only the ordering is important (a node "closer" to the root has to have a lower \ilc{u} value). So a larger $u_{max}$ value gives the solver more freedom to find a suitable choice.
 
 \section{Results}
 We executed all the tests on the provided ADS Server on a single core, without status output and in the production compile mode. All but the very large instances have been run several times to equalize random deviations of execution times. The last two columns are the results of the formulation without the strengthening constraints.
@@ -328,26 +334,26 @@ g08.dat	&	200	&	-	&	-	&	-	&	-	&	-	\\
 test     & k & objective  & branch-n-bound & running   & BnB nodes & running\\
 instance &   & function   & nodes          & time (sec)& (w/o SC)  & time w/o SC \\
 \hline
-g01.dat	&	2	&	46	&	0	&	0.006	&	0	&	0.008	\\
-g01.dat	&	5	&	477	&	15	&	0.020	&	16	&	0.022	\\
-g02.dat	&	4	&	373	&	83	&	0.046	&	102	&	0.040	\\
-g02.dat	&	10	&	1390	&	665	&	0.163	&	1039	&	0.185	\\
-g03.dat	&	10	&	725	&	601	&	0.344	&	964	&	0.555	\\
-g03.dat	&	25	&	3074	&	1494	&	1.822	&	951	&	1.387	\\
-g04.dat	&	14	&	909	&	510	&	1.747	&	2879	&	4.444	\\
-g04.dat	&	35	&	3292	&	11213	&	20.095	&	17425	&	29.909	\\
-g05.dat	&	20	&	1235	&	2362	&	4.695	&	1013	&	2.191	\\
-g05.dat	&	50	&	4898	&	12769	&	30.450	&	12735	&	22.332	\\
-g06.dat	&	40	&	2068	&	12555	&	117.360	&	26941	&	197.820	\\
-g06.dat	&	100	&	6705	&	37379	&	138.460	&	89272	&	331.990	\\
-g07.dat	&	60	&	1335	&	68448	&	898.800	&	976440	&	7,869.940	\\
-g07.dat	&	150	&	4534	&	22848$^{(*)}$	&	550.99$^{(*)}$	&	-	&	-	\\
-g08.dat	&	80	&	-	&	-	&	-	&	-	&	-	\\
-g08.dat	&	200	&	5787	&	94744	&	1,601.900	&	258769	&	7,040.260	\\
+g01.dat	&	2	&	46	&	0	&	0.004	&	0	&	0.008	\\
+g01.dat	&	5	&	477	&	20	&	0.016	&	15	&	0.022	\\
+g02.dat	&	4	&	373	&	138	&	0.031	&	83	&	0.081	\\
+g02.dat	&	10	&	1390	&	351	&	0.102	&	665	&	0.131	\\
+g03.dat	&	10	&	725	&	9	&	0.116	&	601	&	0.589	\\
+g03.dat	&	25	&	3074	&	1062	&	0.699	&	1494	&	2.221	\\
+g04.dat	&	14	&	909	&	86	&	0.440	&	510	&	1.862	\\
+g04.dat	&	35	&	3292	&	595	&	1.656	&	11213	&	20.784	\\
+g05.dat	&	20	&	1235	&	132	&	0.596	&	2362	&	4.668	\\
+g05.dat	&	50	&	4898	&	3016	&	4.068	&	12769	&	30.080	\\
+g06.dat	&	40	&	2068	&	8023	&	15.780	&	12555	&	129.180	\\
+g06.dat	&	100	&	6705	&	50947	&	136.290	&	37379	&	144.910	\\
+g07.dat	&	60	&	1335	&	569	&	46.270	&	68448$^{(*)}$	&	863.860$^{(*)}$	\\
+g07.dat	&	150	&	4534	&	2283	&	104.220	&	-	&	-	\\
+g08.dat	&	80	&	1620	&	1050	&	58.270	&	-	&	-	\\
+g08.dat	&	200	&	5787	&	40712	&	477.720	&	94744$^{(*)}$	&	1,620.380$^{(*)}$	\\
 \hline
 \end{tabular}
 
-$^{(*)}$ = Result not from the final model, but a slightly different formulation due unusually bad influences of optimisations on this instance, which however have been very beneficial for other instances.
+$^{(*)}$ = Result for $u_{max} = n*k$ instead of the usual $k$.
 \end{minipage}
 
 \begin{figure}[htpb]
