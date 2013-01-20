@@ -53,7 +53,10 @@
 \newcommand{\commodity}{j}
 \newcommand{\vertex}{j}
 \newcommand{\edge}{i}
-\newcommand{\forallEdges}{\ensuremath{0 \leq \edge \leq 2|E|}}
+%\newcommand{\forallEdges}{\ensuremath{0 \leq \edge \leq 2|E|}}
+%\newcommand{\forallEdges}{\ensuremath{\forall \edge \in \{0,\:\dotsc,\:2|E|-1\}}}
+\newcommand{\forallEdges}{\ensuremath{\forall \edge \in \{1, \dotsc, 2|E|\}}}
+\newcommand{\forallFirstEdges}{\ensuremath{\forall \edge \in \{1, \dotsc, |E|\}}}
 
 \title{Report on the implementation of the \kmst\ problem as integer linear program}
 \author{Bernhard Mallinger \\ 0707663 \and Christof Schmidt \\ 0627958}
@@ -66,7 +69,7 @@
 
 The \kmst\ problem is a variation of the Minimum Spanning Tree (\mst) problem for undirected graphs $G = (V, E, w)$, including a weight function $w(e) : E \rightarrow \mathbb{R}^+_0$.
 The goal of both problems is to find a tree of minimum cost, but instead of requiring it to span the whole graph as in the classical \mst, for the \kmst, the tree has to span a given number of $k$ arbitrary nodes.
-This restriction turns the formerly tractable problem into an $NP$-complete one.
+This restriction turns the formerly tractable problem into an \textit{NP}-complete one.
 
 \section{General formulation}
 
@@ -77,7 +80,7 @@ This will simplify the management of flow later on.
 \ilc{edges} contains $2|E|$ elements, where the first half represents the edges in one direction and the other half the opposite ones.
 Since trees are acyclic, we can require that only one of the two directed edges that are derived from an undirected edge in the original graph are chosen:
 \begin{equation}
- \ilc{edges}[i] + \ilc{edges}[i + |E|] \leq 1\quad\forall~0\leq i \leq |E|
+ \ilc{edges}[i] + \ilc{edges}[i + |E|] \leq 1\quad\forallFirstEdges
 \end{equation}
 
 Furthermore, to avoid circles in the set of solutions, we require that each vertex has at most one incoming edge (\eqref{eq:oneIncoming}) with a special treatment of the artificial root node, which must not have any incoming edge at all (\eqref{eq:root0}) but exactly one outgoing node (\eqref{eq:root1}). 
@@ -98,7 +101,7 @@ Finally, it is still necessary to state the size of the tree to be calculated.
 The problem statement requires the tree to have exactly $k$ nodes, which for trees means that there are $k-1$ edges.
 Since this formulation also includes an artificial root node, that is not part of the actual problem, we need to allow a further edge, resulting in $k-1+1=k$ edges in total.
 \begin{equation}
-	\sum_{i=0}^{2|E|} \ilc{edges}[i] = k
+	\sum_{i=1}^{2|E|} \ilc{edges}[i] = k
 \end{equation}
 
 \section{Connectivity formulations}
@@ -149,7 +152,7 @@ In \eqref{eq:scf1}, the maximum value for the flow is limited by $k$. However si
 	0 \leq \ilc{flow\_scf}[i] \leq k * \ilc{edges}[i] \quad \forall i \in \ilc{outgoingEdges(0)} 
 \end{equation}
 \begin{equation}\tag{\ref{eq:scf1}$^{\prime\prime}$}
-	0 \leq \ilc{flow\_scf}[i] \leq (k-1) * \ilc{edges}[i] \quad \forall i \not\in \ilc{outgoingEdges(0)}
+	0 \leq \ilc{flow\_scf}[i] \leq (k-1) * \ilc{edges}[i] \quad \forallEdges, i \notin \ilc{outgoingEdges(0)}
 \end{equation}
 
 As further optimisation, we tried to restrict the flow variables to integer values, since in valid solutions, they have to be integer. This turned out to have negative effects on the runtime.
