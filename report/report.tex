@@ -362,11 +362,13 @@ This however is not just a deficiency but is caused by the tightness of the form
 The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
 We were surprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
-This effect is particularly visible for the sequential formulation. Here, there are instances where the strengthening constraints speed up the calculation by a factor up to 2 (cf. g05.dat with k=20 or g05.dat with k=50), for other instances however they are detrimental by about the same factor (cf. g04.dat, k=14 or g06.dat, k=100).
+This effect is particularly visible for the sequential formulation. Here, there are instances where the strengthening constraints speed up the calculation by a factor up to 2 (cf. g05.dat with k=20 or g05.dat with k=50), for other instances however they are detrimental by about the same factor (cf. g04.dat, k=14 or g06.dat, k=100). It was very sensitive to the value of $u_{max}$, which can be anything above k-1, and had very different results for different choices, but no value was dominant for all (or even most) instances.
 From this we conclude that the proper formulation for a problem strongly depends on the input data and has to be developed for each situation individually (or configured dynamically).
 
+The one strengthening constraint that did affect the runtime on most instances for MZT was \eqref{eq:StrAll}, prohibiting outgoing edges for nodes without incoming egdes. It had no effect on SCF and MCF, we think that this is already implied by the flow formulations.
 
 In addition, even for the same model and instance, the runtime fluctuated unusually strong.
 We compensated this effect by executing several rounds of tests.
+
 
 \end{document}
