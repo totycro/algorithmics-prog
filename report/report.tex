@@ -256,12 +256,12 @@ If strengthening rule \eqref{eq:StrAll} is present, this constrain replaces \eqr
  \quad \forall \vertex \in V  \setminus \{0\}
 \end{equation}
 
-For small values of  $u_{max}$, this constraint tightens the selection of the \ilc{u} values, since we know that the sum of all u values can be at most $\sum_1^k{k}$
+For small values of  $u_{max}$, this constraint tightens the selection of the \ilc{u} values, since for all valid solutions, there is an assignment of $u$ such that the sum of all $u$ values are at most $\sum_1^k{k}$.
 \begin{equation}\label{eq:mztMaxU}
 	\sum_{\vertex \in V}{\ilc{u[\vertex]}} \leq \frac{k * (k+1)}{2}
 \end{equation}
 
-The value of $u_{max}$ was also subject to a strengthening or relaxing. The original proposal has $u_{max}$ set to the number of nodes, which makes sense for a TSP that is a path. So we tried n. But in our case, we only have k nodes, so k is a more natural and tighter candidate. But we also tried larger number like $n*k$. Our idea was, that the actual u value does not matter, but only the ordering is important (a node "closer" to the root has to have a lower \ilc{u} value). So a larger $u_{max}$ value gives the solver more freedom to find a suitable choice.
+The value of $u_{max}$ was also subject to a strengthening or relaxing. The original proposal has $u_{max}$ set to the number of nodes, which makes sense for a TSP that is a path. Therefore we tried to use $n$, but in our case, we only have $k$ nodes, so $k$ is a more natural and tighter candidate. Furthermore, we tested larger numbers such as $n*k$. Our idea was, that the actual value of \ilc{u} does not matter, but only the ordering is important (a node "closer" to the root has to have a lower \ilc{u} value). So a larger $u_{max}$ value gives the solver more freedom to find a suitable choice.
 
 \section{Results}
 We executed all the tests on the provided ADS Server on a single core, without status output and in the production compile mode. All but the very large instances have been run several times to equalize random deviations of execution times. The last two columns are the results of the formulation without the strengthening constraints.
@@ -367,16 +367,16 @@ $^{(**)}$ = Result for $u_{max} = n$ instead of the usual $k$.
 
 
 \section{Interpretation of results}
-Chart \ref{fig:chart} shows big differences in the performances of the different formulations. These difference are present for all instance sizes and grow with increasing complexity. The SCF model has the best runtime, closely followed and sometimes beaten by the improved MTZ model. So these two formulation seem suitable to handle this kind of problem. The unimproved MTZ model however, and the MCF model did not perform well and their runtime grew too fast for the larger instances.
+Chart \ref{fig:chart} shows big differences in the performances of the different formulations. These difference are present for all instance sizes and grow with increasing complexity. The SCF model has the best runtime, closely followed and sometimes beaten by the improved MTZ model. So these two formulation seem suitable to handle this kind of problem. Our original MTZ model and the MCF model however did not perform well and their runtime grew too fast for the larger instances.
 
 
 The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints. This however is not just a deficiency but is caused by the tightness of the formulation. The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
 
-The biggest impact on the performance was the introduction of \eqref{eq:StrAll}. It was initially thought as a solely strengthening constraint for all three models, but in the case of MTZ, where \eqref{eq:mztUnused} insures the same property (no outgoing edges without incoming edges), replacing the constraint resulted in a large performance boost. It had no such effect on SCF and MCF, we think that this is already implied equally closde by the flow formulations.
+The biggest impact on the performance was the introduction of \eqref{eq:StrAll}. It was initially thought as a solely strengthening constraint for all three models, but in the case of MTZ, where \eqref{eq:mztUnused} ensures the same property (no outgoing edges without incoming edges), replacing the constraint resulted in a significany performance boost. It had no such effect on SCF and MCF, we think that this is already implied equally close by the flow formulations.
 
 
-The other strengthening constraint usually did not yield in significant performance changes, which seems reasonable since they only tighten the model for a few constraints. 
+The other strengthening constraint usually did not yield significant performance changes, which seems reasonable since they only tighten the model for a few constraints. 
 
 
 We were surprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances. This effect is particularly visible for the sequential formulation. It was very sensitive to the value of $u_{max}$, which can be anything above k, and had very different results for different choices, but no value was dominant for all (or even most) instances. You can see this in the table for MZT, where we took the best results from different $u_{max}$ values. It may be that this problem is caused by the choice of branching - where a small change could lead to a different branching in the beginning and thus a very different branch tree. Still, there seems to be a correlation between the input size and the best choice of $u_{max}$. From this we conclude that the proper formulation for a problem strongly depends on the input data and may be developed for each situation individually (or configured dynamically).
