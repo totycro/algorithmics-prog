@@ -136,6 +136,12 @@ void kMST_ILP::solve()
 			tree.print(cout);
 		}
 
+			if (model_type == "mtz") {
+				cout << " U  Values\r\n";
+				for (int i=0; i<uRes.getSize(); i++) {
+					cout << " U["<< i <<"] = " << (int)uRes[i] << "\r\n";
+				}  
+			}
 		}// do logging
 
 
@@ -544,8 +550,12 @@ void kMST_ILP::modelMTZ()
 {
 	// Miller-Tucker-Zemlin model
 
+
 	IloInt u_max = k ; // version 1
-	IloInt u_max = k * instance.n_nodes; // version 2
+	//IloInt u_max = k * instance.n_nodes; // version 2
+
+	// the uSum constraint may actually worsen runtime, so only optional
+	#define ACTIVATE_U_SUM false
 
 	// some u_i for each vertex
 	u = IloIntVarArray(env, instance.n_nodes);
@@ -554,8 +564,8 @@ void kMST_ILP::modelMTZ()
 
 		#ifdef STRENGTHEN_CONSTRAINTS
 		// strengthen constraints for non artificial nodes
-		if (i > 0) {
-			u[i].setLB(1); // TODO benchmark
+		if (!ACTIVATE_U_SUM && i > 0) {
+			u[i].setLB(1); 
 		}
 		#endif
 	}
@@ -579,8 +589,6 @@ void kMST_ILP::modelMTZ()
 		// u_start + edge < u_end + (1-edge) * M
 		model.add( (u[start] + edges[edgeId])  - u[end] - ( ( 1 - edges[edgeId]) * u_max )  <= 0 );
 
-		// TODO u = 1 for first node
-
 		if (start == 0) {
 			// help u assignment: we know that if a an edge leaving 0 is chosen, the u-value has to be 1 for the node entered by the edge
 
@@ -594,7 +602,7 @@ void kMST_ILP::modelMTZ()
 	}
 
 	#ifdef STRENGTHEN_CONSTRAINTS
-	//IloExpr uSum(env);
+	IloExpr uSum(env);
 	#endif
 
 
@@ -612,17 +620,24 @@ void kMST_ILP::modelMTZ()
 				incomingEdgesSum += edges[ incomingEdgeIds[i] ];
 			}
 		}
-		#ifdef STRENGTHEN_CONSTRAINTS
-		uSum += u[vertex];
-		#endif
+		#ifndef STRENGTHEN_CONSTRAINTS
+
 		// if there are no incoming edges, the subtrahend is 0, so u_vertex is forced to be maximal
 		// if there are incoming edges, the lhs is smaller or equal to 0, so the condition doesn't go into effect
 		model.add( (u_max - (incomingEdgesSum * u_max)) <= u[vertex]);
 
-		//model.add( ((incomingEdgesSum * u_max)) >= u[vertex]); all u to 0; does not work - why?
-
 		// this is the same but probably more efficient, maybe test with it:
 		//model.add( IloIfThen(env, incomingEdgesSum == 0, u[vertex] == u_max) );
+		#endif
+
+
+		#ifdef STRENGTHEN_CONSTRAINTS
+		if (ACTIVATE_U_SUM) {
+			uSum += u[vertex];
+  			//alternativly all unused u to 0;
+			model.add( ((incomingEdgesSum * u_max)) >= u[vertex]);
+		}
+		#endif
 
 		incomingEdgesSum.end();
 	}
@@ -630,13 +645,11 @@ void kMST_ILP::modelMTZ()
 	#ifdef STRENGTHEN_CONSTRAINTS
 	//strengthening conntraint to better describe distribution of u values
 	// we wanted alldifferent(exponentially many constraints), but this has to suffice
-	//int sumOverU = 0 * u_max * ( instance.n_nodes -1 - k ) + // all unconnected nodes
-	//	    k * (k+1) / 2; //small gauss	
-	//model.add( uSum <= sumOverU);
+	if (ACTIVATE_U_SUM) {
+		int sumOverU = (k * (k+1)) / 2; 
+		model.add( uSum <= sumOverU);
+	}
 	#endif 
-
-
-
 }
 
 /* original version, results in excellent values for 07/60, but is worse for all others
