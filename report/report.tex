@@ -244,7 +244,7 @@ This constraint forces all u values for unused nodes (which have no incoming nod
 
 \subsubsection{Strengthening Constraints}
 
-For all non artificial nodes, we know that the u value has to be at least 1.
+For all non artificial nodes, we know that the u value has to be at least 1. (Not possible in combination with \eqref{eq:mztMaxU})
 \begin{equation}\label{eq:mztNodes1}
  \ilc{u[\vertex]} \geq 1
  \quad \forall \vertex \in V  \setminus \{0\}
@@ -261,7 +261,7 @@ For small values of  $u_{max}$, this constraint tightens the selection of the \i
 	\sum_{\vertex \in V}{\ilc{u[\vertex]}} \leq \frac{k * (k+1)}{2}
 \end{equation}
 
-The value of $u_{max}$ was also subject to a strengthening or relaxing. The original proposal has $u_{max}$ set to the number of nodes, which makes sense for a TSP that is a path. So we tried n. But in our case, we only have k nodes, so k is a more natural and tighter canditate. But we also tried larger number like $n*k$. Our idea was, that the actual u value does not matter, but only the ordering is important (a node "closer" to the root has to have a lower \ilc{u} value). So a larger $u_{max}$ value gives the solver more freedom to find a suitable choice.
+The value of $u_{max}$ was also subject to a strengthening or relaxing. The original proposal has $u_{max}$ set to the number of nodes, which makes sense for a TSP that is a path. So we tried n. But in our case, we only have k nodes, so k is a more natural and tighter candidate. But we also tried larger number like $n*k$. Our idea was, that the actual u value does not matter, but only the ordering is important (a node "closer" to the root has to have a lower \ilc{u} value). So a larger $u_{max}$ value gives the solver more freedom to find a suitable choice.
 
 \section{Results}
 We executed all the tests on the provided ADS Server on a single core, without status output and in the production compile mode. All but the very large instances have been run several times to equalize random deviations of execution times. The last two columns are the results of the formulation without the strengthening constraints.
@@ -336,27 +336,30 @@ instance &   & function   & nodes          & time (sec)& (w/o SC)  & time w/o SC
 \hline
 g01.dat	&	2	&	46	&	0	&	0.004	&	0	&	0.008	\\
 g01.dat	&	5	&	477	&	20	&	0.016	&	15	&	0.022	\\
-g02.dat	&	4	&	373	&	138	&	0.031	&	83	&	0.081	\\
-g02.dat	&	10	&	1390	&	351	&	0.102	&	665	&	0.131	\\
+g02.dat	&	4	&	373	&	43$^{(**)}$	&	0.026$^{(**)}$	&	91$^{(*)}$	&	0.036$^{(*)}$	\\
+g02.dat	&	10	&	1390	&	217	$^{(**)}$&	0.085	$^{(**)}$&	665	&	0.131	\\
 g03.dat	&	10	&	725	&	9	&	0.116	&	601	&	0.589	\\
 g03.dat	&	25	&	3074	&	1062	&	0.699	&	1494	&	2.221	\\
 g04.dat	&	14	&	909	&	86	&	0.440	&	510	&	1.862	\\
-g04.dat	&	35	&	3292	&	595	&	1.656	&	11213	&	20.784	\\
+g04.dat	&	35	&	3292	&	595	&	1.656	&	10537$^{(*)}$	&	8.928$^{(*)}$	\\
 g05.dat	&	20	&	1235	&	132	&	0.596	&	2362	&	4.668	\\
 g05.dat	&	50	&	4898	&	3016	&	4.068	&	12769	&	30.080	\\
 g06.dat	&	40	&	2068	&	8023	&	15.780	&	12555	&	129.180	\\
-g06.dat	&	100	&	6705	&	50947	&	136.290	&	37379	&	144.910	\\
-g07.dat	&	60	&	1335	&	569	&	46.270	&	68448$^{(*)}$	&	863.860$^{(*)}$	\\
-g07.dat	&	150	&	4534	&	2283	&	104.220	&	-	&	-	\\
+g06.dat	&	100	&	6705	&	28492	$^{(**)}$&	90.020$^{(**)}$	&	23966$^{(**)}$	&	100.190$^{(**)}$	\\
+g07.dat	&	60	&	1335	&	5098$^{(*)}$	&	40.000$^{(*)}$	&	68448$^{(*)}$	&	863.860	$^{(*)}$\\
+g07.dat	&	150	&	4534	&	2210$^{(**)}$	&	42.680$^{(**)}$	&	-	&	-	\\
 g08.dat	&	80	&	1620	&	1050	&	58.270	&	-	&	-	\\
-g08.dat	&	200	&	5787	&	40712	&	477.720	&	94744$^{(*)}$	&	1,620.380$^{(*)}$	\\
+g08.dat	&	200	&	5787	&	26345$^{(**)}$	&	260.360$^{(**)}$	&	94744$^{(*)}$	&	1,620.380$^{(*)}$	\\
 \hline
 \end{tabular}
 
 $^{(*)}$ = Result for $u_{max} = n*k$ instead of the usual $k$.
+
+
+$^{(**)}$ = Result for $u_{max} = n$ instead of the usual $k$.
 \end{minipage}
 
-\begin{figure}[htpb]
+\begin{figure}[htb]
 	\centering	\includegraphics[width=1.00\textwidth]{chart.png}
 	\caption{Comparison of runtimes between the models}
 	\label{fig:chart}
@@ -364,20 +367,21 @@ $^{(*)}$ = Result for $u_{max} = n*k$ instead of the usual $k$.
 
 
 \section{Interpretation of results}
-Chart \ref{fig:chart} shows big differences in the performances of the different formulations. The SCF model performed far better than all other models in most instance sizes and was always able to compute a result in a reasonable time span. The MTZ usually yielded better results than the MCF formulation, but for some of the large instances, it was not possible to obtain an optimal solution.
+Chart \ref{fig:chart} shows big differences in the performances of the different formulations. These difference are present for all instance sizes and grow with increasing complexity. The SCF model has the best runtime, closely followed and sometimes beaten by the improved MTZ model. So these two formulation seem suitable to handle this kind of problem. The unimproved MTZ model however, and the MCF model did not perform well and their runtime grew too fast for the larger instances.
 
-The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints.
-This however is not just a deficiency but is caused by the tightness of the formulation.
-The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
-We were surprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances.
-This effect is particularly visible for the sequential formulation. Here, there are instances where the strengthening constraints speed up the calculation by a factor up to 2 (cf. g05.dat with k=20 or g05.dat with k=50), for other instances however they are detrimental by about the same factor (cf. g04.dat, k=14 or g06.dat, k=100). It was very sensitive to the value of $u_{max}$, which can be anything above k-1, and had very different results for different choices, but no value was dominant for all (or even most) instances.
-From this we conclude that the proper formulation for a problem strongly depends on the input data and has to be developed for each situation individually (or configured dynamically).
+The MCF formulation wasn't even computable for instances 7 and 8 due to the quadratic number of constraints. This however is not just a deficiency but is caused by the tightness of the formulation. The low number of branch-and-bound nodes compared to the other formulations shows that optimal solutions can often be obtained with very little branching, at the expense of long runtimes for solving the relaxation.
 
-The one strengthening constraint that did affect the runtime on most instances for MZT was \eqref{eq:StrAll}, prohibiting outgoing edges for nodes without incoming egdes. It had no effect on SCF and MCF, we think that this is already implied by the flow formulations.
 
-In addition, even for the same model and instance, the runtime fluctuated unusually strong.
-We compensated this effect by executing several rounds of tests.
+The biggest impact on the performance was the introduction of \eqref{eq:StrAll}. It was initially thought as a solely strengthening constraint for all three models, but in the case of MTZ, where \eqref{eq:mztUnused} insures the same property (no outgoing edges without incoming edges), replacing the constraint resulted in a large performance boost. It had no such effect on SCF and MCF, we think that this is already implied equally closde by the flow formulations.
 
+
+The other strengthening constraint usually did not yield in significant performance changes, which seems reasonable since they only tighten the model for a few constraints. 
+
+
+We were surprised that small changes on the model led to very different running time. Usually the impact was worse for some and better for other instances. This effect is particularly visible for the sequential formulation. It was very sensitive to the value of $u_{max}$, which can be anything above k, and had very different results for different choices, but no value was dominant for all (or even most) instances. You can see this in the table for MZT, where we took the best results from different $u_{max}$ values. It may be that this problem is caused by the choice of branching - where a small change could lead to a different branching in the beginning and thus a very different branch tree. Still, there seems to be a correlation between the input size and the best choice of $u_{max}$. From this we conclude that the proper formulation for a problem strongly depends on the input data and may be developed for each situation individually (or configured dynamically).
+
+
+In addition, even for the same model and instance, the runtime fluctuated unusually strong, even for the large instances. We compensated this effect by executing several rounds of tests.
 
 \end{document}
